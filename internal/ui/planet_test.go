@@ -12,21 +12,21 @@ func TestGlobeGeometryCoversTheDisc(t *testing.T) {
 		if len(cells) != cols*rows {
 			t.Fatalf("%dx%d: %d cells, want %d", cols, rows, len(cells), cols*rows)
 		}
-		limbs := 0
+		insideCount := 0
 		for i, cell := range cells {
 			inside := cell.u*cell.u+cell.v*cell.v <= 1
 			if cell.inside != inside {
 				t.Fatalf("cell %d (%.2f,%.2f) inside = %v", i, cell.u, cell.v, cell.inside)
 			}
-			if cell.limb {
-				limbs++
-			}
 			if cell.inside && (cell.z < 0 || cell.z > 1) {
 				t.Fatalf("cell %d z = %v", i, cell.z)
 			}
+			if cell.inside {
+				insideCount++
+			}
 		}
-		if limbs == 0 {
-			t.Errorf("%dx%d: no limb cells", cols, rows)
+		if insideCount < cols*rows*2/3 {
+			t.Errorf("%dx%d: only %d of %d cells inside the disc", cols, rows, insideCount, cols*rows)
 		}
 	}
 }
@@ -54,6 +54,22 @@ func TestGlobeBrightnessIsDeterministic(t *testing.T) {
 		}
 		if before[i] < 0 || before[i] > 1 || math.IsNaN(float64(before[i])) {
 			t.Fatalf("cell %d brightness = %v", i, before[i])
+		}
+	}
+}
+
+func TestGlobeHasNoShadow(t *testing.T) {
+	cells := globeGeometry(64, 32)
+	for _, kind := range []planetKind{earth, mars, mercury, jupiter, sun, moon} {
+		for _, angle := range []float64{0, 0.7, 2.1} {
+			for _, cell := range cells {
+				if !cell.inside {
+					continue
+				}
+				if b := globeBrightness(kind, cell, angle); b < 0.4 {
+					t.Fatalf("%v at %.1f: cell (%.2f,%.2f) brightness %v is in shadow", kind, angle, cell.u, cell.v, b)
+				}
+			}
 		}
 	}
 }

@@ -8,11 +8,11 @@ import (
 )
 
 // The planets are character globes, not photographs: a grid of monospace
-// cells, one glyph per cell chosen by brightness, lit from the upper left.
-// The body's surface turns under the fixed light, so the terminator stays
-// where it is while continents drift — that is what reads as a sphere
-// turning in 3D. The look follows the ASCII-generator idea (brightness ramp,
-// edges, colour); the drawing, the bodies and the noise are ours.
+// cells, one glyph per cell chosen by the surface alone. The body is lit
+// evenly — no terminator, no night side — so the whole disc stays readable
+// while continents drift under it. The look follows the ASCII-generator idea
+// (brightness ramp, edges, colour); the drawing, the bodies and the noise are
+// ours.
 
 type planetKind int
 
@@ -55,14 +55,11 @@ func (k planetKind) speed() float64 {
 	}
 }
 
-// globeCell is the fixed part of one cell: where it sits on the sphere and
-// how much light it gets. It does not depend on the angle.
+// globeCell is the fixed part of one cell: where it sits on the sphere. It
+// does not depend on the angle.
 type globeCell struct {
-	u, v, z  float32
-	ndl      float32
-	rim      float32
-	inside   bool
-	limb     bool
+	u, v, z float32
+	inside  bool
 }
 
 type globeKey struct{ cols, rows int }
@@ -76,14 +73,8 @@ func globeGeometry(cols, rows int) []globeCell {
 	if v, ok := globeCache.Load(key); ok {
 		return v.([]globeCell)
 	}
-	const (
-		lx = -0.58
-		ly = -0.32
-		lz = 0.75
-	)
-	ln := math.Sqrt(lx*lx + ly*ly + lz*lz)
 	cells := make([]globeCell, cols*rows)
-	for r := 0; r < rows; r++ {
+	for r := range rows {
 		for c := range cols {
 			u := (float32(c) + 0.5) / float32(cols) * 2 - 1
 			v := (float32(r) + 0.5) / float32(rows) * 2 - 1
@@ -93,9 +84,6 @@ func globeGeometry(cols, rows int) []globeCell {
 				z := float32(math.Sqrt(float64(1 - rr)))
 				cell.inside = true
 				cell.z = z
-				cell.ndl = (u*float32(lx) + v*float32(ly) + z*float32(lz)) / float32(ln)
-				cell.rim = float32(math.Pow(float64(1-z), 4))
-				cell.limb = z < 0.24
 			}
 			cells[r*cols+c] = cell
 		}
@@ -182,12 +170,14 @@ func drawGlobe(p *Painter, r Rect, pal palette) {
 
 	geometry := globeGeometry(cols, rows)
 	ramp := kind.ramp()
-	tones := [3][]rune{
-		fillRunes(' ', cols),
+	// Two tones: the body's base and its lit surface. With no shadow there is
+	// no night side for the faint tone to describe, and a disc in the faintest
+	// ink is the thing that was hard to see.
+	tones := [2][]rune{
 		fillRunes(' ', cols),
 		fillRunes(' ', cols),
 	}
-	used := [3]bool{}
+	used := [2]bool{}
 
 	x0 := r.X + (r.W-float32(cols)*cellW)/2
 	y0 := r.Y + (r.H-float32(rows)*cellH)/2
@@ -202,30 +192,18 @@ func drawGlobe(p *Painter, r Rect, pal palette) {
 			if !cell.inside {
 				continue
 			}
-			tone := uint8(0)
-			var glyph rune = '·'
-			if cell.limb {
-				tone = 0
-			} else {
-				b := globeBrightness(kind, cell, angle)
-				idx := int(b * float32(len(ramp)-1))
-				// Below a dot the cell stays blank: a ramped globe that
-				// inks every cell reads as a net, not a body.
-				if idx < 2 {
-					continue
-				}
-				if idx >= len(ramp) {
-					idx = len(ramp) - 1
-				}
-				glyph = ramp[idx]
-				switch {
-				case b >= 0.55:
-					tone = 2
-				case b >= 0.22:
-					tone = 1
-				}
+			b := globeBrightness(kind, cell, angle)
+			idx := 1 + int(b*float32(len(ramp)-2))
+			// Every cell inside the limb is inked: the body is shown whole,
+			// not as a lit crescent over a field of dots.
+			if idx >= len(ramp) {
+				idx = len(ramp) - 1
 			}
-			tones[tone][col] = glyph
+			tone := 0
+			if b >= 0.78 {
+				tone = 1
+			}
+			tones[tone][col] = ramp[idx]
 			used[tone] = true
 		}
 		for t := range tones {
@@ -236,7 +214,7 @@ func drawGlobe(p *Painter, r Rect, pal palette) {
 				Text:  string(tones[t]),
 				Font:  fontMono,
 				Size:  fontSize,
-				Color: pal.ink[t],
+				Color: pal.ink[t+1],
 			})
 		}
 	}
@@ -256,9 +234,11 @@ func clearRunes(rs []rune) {
 	}
 }
 
-// globeBrightness is how lit and textured one cell is, 0 to 1.
+// globeBrightness is how textured one cell is, 0 to 1. The body is lit
+// evenly: no terminator and no night side, so the whole disc reads the same
+// way and only the surface changes the glyph.
 func globeBrightness(kind planetKind, cell globeCell, angle float64) float32 {
-	// Turn the point around Y; the light and the limb stay put.
+	// Turn the point around Y: only the surface moves with the angle.
 	sinA, cosA := float32(math.Sin(angle)), float32(math.Cos(angle))
 	// Reverse the tilt, then rotate.
 	y := cell.v*float32(math.Cos(globeTilt)) - cell.z*float32(math.Sin(globeTilt))
@@ -268,15 +248,10 @@ func globeBrightness(kind planetKind, cell globeCell, angle float64) float32 {
 	lat := math.Asin(math.Max(-1, math.Min(1, float64(y))))
 	lon := math.Atan2(float64(x), float64(zz))
 
-	tex := bodyTexture(kind, lon, lat)
-	var b float64
-	if kind == sun {
-		b = 0.45 + 0.55*tex + 0.35*float64(cell.rim)
-	} else {
-		day := smoothstep(-0.12, 0.28, float64(cell.ndl))
-		b = day*(0.35+0.65*tex) + 0.10*float64(cell.rim)
-	}
-	b = math.Pow(math.Max(0, math.Min(1, b)), 1.5)
+	// A floor keeps the darkest surface above the blank end of the ramp: the
+	// planet is shown whole, not as a lit crescent.
+	b := 0.35 + 0.65*bodyTexture(kind, lon, lat)
+	b = math.Pow(math.Max(0, math.Min(1, b)), 1.2)
 	return float32(b)
 }
 
