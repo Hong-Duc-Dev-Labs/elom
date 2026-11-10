@@ -1,6 +1,6 @@
 {
   "name": "Elom",
-  "identifier": "dev.elom.app",
+  "identifier": "labs.hongducdev.elom",
   "version": "0.1.0",
   "out": "build",
   "i18n": { "dir": "locales", "source": "en" }
