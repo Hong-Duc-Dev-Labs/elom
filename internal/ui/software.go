@@ -112,8 +112,7 @@ func (a *App) updatesSection(c *Context, pal palette) {
 	cardWith(c, 10, func() {
 		Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
 			Box(c).Size(6, 6).Radius(3).Background(pal.glow)
-			Text(c, locales.SoftwareUpdates()).FontSize(10.5).FontWeight(600).
-				LetterSpacing(1.0).TextColor(quietText()).NoWrap()
+			capsLabel(c, locales.SoftwareUpdates(), quietText())
 			Spacer(c)
 			if st.checking {
 				Spinner(c)

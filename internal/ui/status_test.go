@@ -64,18 +64,6 @@ func TestStatusPageWaitsForFirstSample(t *testing.T) {
 	}
 }
 
-func TestPanelView(t *testing.T) {
-	a := newTestApp(t)
-	a.status = sampleSnapshot()
-	tt := NewTester(a.PanelView, 360, 380)
-	texts := strings.Join(tt.Texts(), "\n")
-	for _, want := range []string{"Elom", "notepad.exe", "Open Elom", "Quit"} {
-		if !strings.Contains(texts, want) {
-			t.Errorf("missing %q in:\n%s", want, texts)
-		}
-	}
-}
-
 func TestFormatUptime(t *testing.T) {
 	if got := formatUptime(90 * time.Minute); got != "1h 30m" {
 		t.Errorf("formatUptime = %q", got)

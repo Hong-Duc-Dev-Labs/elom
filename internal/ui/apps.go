@@ -18,22 +18,23 @@ func (a *App) appsPage(c *Context, pal palette) {
 	Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
 		labels := []string{locales.SoftwareUninstall(), locales.SoftwareUpdates(), locales.NavStartup()}
 		seg := SegmentedBase(c, &a.appsTab, len(labels))
-		seg.Track.Padding(3).Radius(999).Background(RGBA(255, 255, 255, 0.06)).
-			Border(1, hairline()).Children(func() {
+		seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
+			Border(1, hairline()).Label(locales.NavApps()).Children(func() {
 			for i, label := range labels {
-				s := seg.Segment(i).Padding(5, 14).Radius(999).Label(label)
-				color := fgSecondary()
+				s := seg.Segment(i).Padding(6, 12).Radius(6).Label(label)
+				color := fgMuted()
 				switch {
 				case i == a.appsTab:
-					s.Background(Hex("#f7f5f0")).Shadow(0, 1, 6, 0, RGBA(0, 0, 0, 0.25))
-					color = Hex("#12161f")
+					s.Background(pal.ink[1].Alpha(0.22))
+					s.Border(1, pal.ink[1].Alpha(0.40))
+					color = fgPrimary()
 				case s.Hovered():
-					s.Background(RGBA(255, 255, 255, 0.08))
+					s.Background(faintFill())
 				}
 				s.Children(func() {
-					t := Text(c, label).FontSize(12).NoWrap().TextColor(color)
+					t := Text(c, label).Font(fontMono).FontSize(11).NoWrap().TextColor(color)
 					if i == a.appsTab {
-						t.FontWeight(600)
+						t.FontWeight(500)
 					}
 				})
 			}
@@ -138,7 +139,10 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 	case !st.loaded:
 		a.loadApps()
 		Column(c).FillWidth().AlignItems(Center).Padding(28, 0, 20, 0).Gap(16).Children(func() {
-			planet(c, 120, pal)
+			Column(c).AlignItems(Center).Gap(10).Children(func() {
+				planet(c, 120, pal)
+				Box(c).Width(200).Height(1).Background(hairline())
+			})
 			if a.Win == nil && primaryPill(c, locales.SoftwareLoad()).Clicked() {
 				a.loadApps()
 			}
@@ -170,22 +174,34 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 	for _, app := range list {
 		total += app.SizeBytes
 	}
-	Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(2, 8).Children(func() {
-		Text(c, locales.AppsInstalled()).FontSize(11.5).FontWeight(600).TextColor(softText())
-		Text(c, locales.SoftwareCount(len(list))+" · "+humanBytes(total)).
-			FontSize(11).Font("Consolas").TextColor(quietText())
-	})
+	card(c).Grow(1).Children(func() {
+		Column(c).FillWidth().Grow(1).Gap(6).Children(func() {
+			Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(2, 8, 0, 8).Children(func() {
+				capsLabel(c, locales.AppsInstalled(), softText())
+				Text(c, locales.SoftwareCount(len(list))+" · "+humanBytes(total)).
+					Font(fontMono).FontSize(sizeMicro).TextColor(quietText())
+				Spacer(c)
+			})
+			rule(c)
 
 	if st.picked >= len(list) {
 		st.picked = -1
 	}
+	// Selected gives the rows the keyboard: Up/Down/Home/End move the choice
+	// and Enter reports it. Without it a List is not focusable and the one
+	// screen that uninstalls software was mouse-only.
+	st.rows.Selected = &st.picked
+	st.rows.Label = func(i int) string { return list[i].Name }
 	List(c, &st.rows, len(list), func(i int) {
 		app := list[i]
 		chosen := i == st.picked
-		Column(c).FillWidth().Children(func() {
+		// The card ground is painted by the row itself: a List paints its
+		// chosen row in the theme accent (the cream primary fill) behind
+		// this column, and the row plus its detail must cover it whole.
+		Column(c).FillWidth().Radius(radiusCard).Background(frameCard()).Children(func() {
 			row := listRow(c)
 			row.Children(func() {
-				a.appIcon(c, app, 28)
+				a.appIcon(c, app, 28, pal)
 				Column(c).Grow(1).Gap(3).Children(func() {
 					Text(c, trim(app.Name, 70)).FontSize(13).FontWeight(600).TextColor(fgPrimary()).NoWrap()
 					facts := []string{}
@@ -207,17 +223,14 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 			})
 			switch {
 			case chosen:
-				row.Background(RGBA(255, 255, 255, 0.06))
+				// The List paints its chosen row in the theme's accent, which
+				// is the cream primary fill. Cover it with an opaque ink tint
+				// at the same radius, so a selected app reads as the screen's
+				// planet and not as a second primary button.
+				row.Background(frameCard().Mix(pal.ink[1], 0.20)).Radius(radiusCard)
 			case row.Hovered():
 				row.Background(faintFill())
 			}
-			row.OnClick(func() {
-				if st.picked == i {
-					st.picked = -1
-				} else {
-					st.picked = i
-				}
-			})
 			if chosen {
 				a.softwareDetail(c, app, pal)
 			}
@@ -225,16 +238,18 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 				rowDivider(c)
 			}
 		})
-	}).FillWidth().Grow(1).Children(func() {
-		if len(list) == 0 {
-			Text(c, locales.SoftwareEmpty()).FontSize(12.5).TextColor(fgMuted()).Padding(12)
-		}
+			}).FillWidth().Grow(1).Children(func() {
+				if len(list) == 0 {
+					Text(c, locales.SoftwareEmpty()).FontSize(12.5).TextColor(fgMuted()).Padding(12)
+				}
+			})
+		})
 	})
 }
 
 // appIcon is the app's own icon, or a tile with its initial when Windows has
 // none to give.
-func (a *App) appIcon(c *Context, app apps.App, size float32) {
+func (a *App) appIcon(c *Context, app apps.App, size float32, pal palette) {
 	if icon := a.iconFor(app); icon != nil {
 		Image(c, icon).Size(size, size)
 		return
@@ -243,15 +258,13 @@ func (a *App) appIcon(c *Context, app apps.App, size float32) {
 	if r := []rune(strings.TrimSpace(app.Name)); len(r) > 0 {
 		initial = strings.ToUpper(string(r[0]))
 	}
-	hue := monogramColors[len(app.Name)%len(monogramColors)]
-	Box(c).Size(size, size).Radius(size*0.26).Background(hue).AlignItems(Center).Justify(Center).
+	// No foreign hues: a missing icon is a cell of the screen's own planet
+	// ink, with the initial set in the lit tone.
+	Box(c).Size(size, size).Radius(size*0.26).Background(pal.ink[0]).
+		Border(0.6, hairline()).AlignItems(Center).Justify(Center).
 		Children(func() {
-			Text(c, initial).FontSize(size * 0.48).FontWeight(700).TextColor(Hex("#ffffff"))
+			Text(c, initial).Font(fontMono).FontSize(size * 0.42).FontWeight(600).TextColor(pal.ink[2])
 		})
-}
-
-var monogramColors = []Color{
-	Hex("#3f7be0"), Hex("#2f9e6e"), Hex("#c4583f"), Hex("#8a5cc7"), Hex("#c99a2e"), Hex("#3a9fb0"),
 }
 
 // checkMark is the square on the right of a row, as Mole's: empty, or filled

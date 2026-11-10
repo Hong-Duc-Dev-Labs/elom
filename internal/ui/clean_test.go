@@ -77,3 +77,19 @@ func TestHumanBytes(t *testing.T) {
 		}
 	}
 }
+
+// The path belongs to the row; the checkbox carries it as its accessible
+// name instead of a visible caption, which used to print every path twice.
+func TestCleanRowHasAccessibleCheckbox(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "clean"
+	a.clean.scanned = true
+	a.clean.reviewing = true
+	path := `C:\Users\ada\AppData\Local\Temp`
+	a.clean.candidates = []scan.Candidate{{Path: path, Bytes: 2048, Category: "temp"}}
+
+	tt := NewTester(a.View, 1180, 760)
+	if _, ok := tt.AccessByRole(RoleCheckBox, path); !ok {
+		t.Errorf("the row checkbox has no accessible name %q", path)
+	}
+}

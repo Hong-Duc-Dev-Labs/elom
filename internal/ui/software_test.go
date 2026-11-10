@@ -13,6 +13,25 @@ import (
 	"elom/internal/core/winget"
 )
 
+func TestSoftwareListIsKeyboardReady(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.software.loaded = true
+	a.software.byName = true
+	a.software.list = []apps.App{
+		{Name: "Alpha", Version: "1.0", Publisher: "A", SizeBytes: 10},
+		{Name: "Beta", Version: "2.0", Publisher: "B", SizeBytes: 20},
+	}
+	_ = Render(a.View, 1180, 760, 1)
+
+	if a.software.rows.Selected == nil {
+		t.Fatal("the app list has no Selected cursor: the rows are mouse-only")
+	}
+	if got := a.software.rows.Label(0); got != "Alpha" {
+		t.Errorf("row label = %q, want the app name", got)
+	}
+}
+
 func TestSoftwarePageRendersApps(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "software"

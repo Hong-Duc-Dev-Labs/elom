@@ -43,7 +43,10 @@ func (a *App) startupPage(c *Context, pal palette) {
 	case !st.loaded:
 		a.loadStartup()
 		Column(c).FillWidth().AlignItems(Center).Padding(28, 0, 20, 0).Gap(16).Children(func() {
-			planet(c, 120, pal)
+			Column(c).AlignItems(Center).Gap(10).Children(func() {
+				planet(c, 120, pal)
+				Box(c).Width(200).Height(1).Background(hairline())
+			})
 			if a.Win == nil && primaryPill(c, locales.StartupLoad()).Clicked() {
 				a.loadStartup()
 			}
@@ -59,11 +62,13 @@ func (a *App) startupPage(c *Context, pal palette) {
 	}
 
 	st.table.Selected = &st.picked
+	st.table.Label = func(i int) string { return st.entries[i].Name }
 	cardWith(c, 0, func() {
-		Column(c).FillWidth().Gap(1).Children(func() {
-			for i := range st.entries {
-				entry := &st.entries[i]
-				i := i
+		// The rows go through a List so the tab is keyboard-reachable; the
+		// switch inside a row keeps its own focus.
+		List(c, &st.table, len(st.entries), func(i int) {
+			entry := &st.entries[i]
+			Column(c).FillWidth().Radius(radiusCard).Background(frameCard()).Children(func() {
 				row := listRow(c)
 				row.Children(func() {
 					Icon(c, iconStartup).FontSize(15).TextColor(fgMuted())
@@ -85,7 +90,7 @@ func (a *App) startupPage(c *Context, pal palette) {
 					})
 					if entry.Writable {
 						on := entry.Enabled
-						sw := toggle(c, &on)
+						sw := toggle(c, &on, entry.Name)
 						if sw.Changed() {
 							a.toggleStartup(i, on)
 						}
@@ -93,13 +98,16 @@ func (a *App) startupPage(c *Context, pal palette) {
 						Text(c, "—").Width(34).TextColor(fgMuted())
 					}
 				})
-				if row.Hovered() {
+				switch {
+				case i == st.picked:
+					row.Background(frameCard().Mix(pal.ink[1], 0.20)).Radius(radiusCard)
+				case row.Hovered():
 					row.Background(faintFill())
 				}
 				if i < len(st.entries)-1 {
 					rowDivider(c)
 				}
-			}
+			})
 		})
 	})
 }

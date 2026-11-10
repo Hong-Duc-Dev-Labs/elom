@@ -73,7 +73,10 @@ func (a *App) analyzePage(c *Context, pal palette) {
 		return
 	case st.root == nil:
 		Column(c).FillWidth().AlignItems(Center).Padding(28, 0, 20, 0).Gap(14).Children(func() {
-			planet(c, 150, pal)
+			Column(c).AlignItems(Center).Gap(10).Children(func() {
+				planet(c, 150, pal)
+				Box(c).Width(240).Height(1).Background(hairline())
+			})
 			Text(c, locales.AnalyzeEmpty()).FontSize(13).TextColor(appTheme.TextMuted).
 				MaxWidth(440).TextAlign(Center)
 			Row(c).Gap(10).Children(func() {
@@ -102,9 +105,9 @@ func (a *App) analyzePage(c *Context, pal palette) {
 			Column(c).FillWidth().AlignItems(Center).Gap(10).Padding(6, 0, 4, 0).Children(func() {
 				planet(c, 92, pal)
 				Text(c, locales.AnalyzeItems(current.Files, humanBytes(current.Bytes))).
-					FontSize(11.5).Font("Consolas").TextColor(softText()).NoWrap()
+					FontSize(11.5).Font(fontMono).TextColor(softText()).NoWrap()
 			})
-			Text(c, locales.AnalyzeCurrent()).FontSize(11.5).FontWeight(600).TextColor(softText()).Padding(4, 4, 0, 4)
+			capsLabel(c, locales.AnalyzeCurrent(), softText())
 			List(c, nil, len(current.Children), func(i int) {
 				child := current.Children[i]
 				row := listRow(c)
@@ -146,15 +149,20 @@ func (a *App) analyzePage(c *Context, pal palette) {
 				}
 				views := []string{locales.AnalyzeMap(), locales.AnalyzeLargest()}
 				seg := SegmentedBase(c, &st.view, len(views))
-				seg.Track.Padding(2).Margin(0, 0, 0, 8).Radius(999).Background(RGBA(255, 255, 255, 0.06)).Children(func() {
+				seg.Track.Padding(2).Margin(0, 0, 0, 8).Radius(radiusRow).
+					Background(RGBA(0, 0, 0, 0.12)).Border(1, hairline()).
+					Label(locales.NavAnalyze()).Children(func() {
 					for i, label := range views {
-						s := seg.Segment(i).Padding(3, 10).Radius(999).Label(label)
-						color := fgSecondary()
+						s := seg.Segment(i).Padding(4, 10).Radius(6).Label(label)
+						color := fgMuted()
 						if i == st.view {
-							s.Background(Hex("#f7f5f0"))
-							color = Hex("#12161f")
+							s.Background(pal.ink[1].Alpha(0.22))
+							s.Border(1, pal.ink[1].Alpha(0.40))
+							color = fgPrimary()
 						}
-						s.Children(func() { Text(c, label).FontSize(11).NoWrap().TextColor(color) })
+						s.Children(func() {
+							Text(c, label).Font(fontMono).FontSize(10.5).NoWrap().TextColor(color)
+						})
 					}
 				})
 				if iconButton(c, iconFolder, locales.AnalyzeChoose()).Clicked() {
@@ -197,6 +205,13 @@ func (a *App) analyzePage(c *Context, pal palette) {
 func (a *App) breadcrumb(c *Context) {
 	st := &a.analyze
 	trail := append(append([]*scan.Node(nil), st.stack...), st.current)
+	if len(st.stack) > 0 {
+		if iconButton(c, iconBack, locales.CleanBack()).Clicked() {
+			st.current = st.stack[len(st.stack)-1]
+			st.stack = st.stack[:len(st.stack)-1]
+			a.resetSelected()
+		}
+	}
 	for i, node := range trail {
 		if i > 0 {
 			Icon(c, iconChevron).FontSize(11).TextColor(quietText())
@@ -238,12 +253,16 @@ func (a *App) paintTreemap(p *Painter, r Rect, pal palette) {
 	}
 	for _, tile := range st.tiles {
 		child := st.current.Children[tile.Index]
-		fill := pal.ink[1]
-		if len(pal.tiles) > 0 {
-			fill = pal.tiles[tile.Index%len(pal.tiles)]
+		// The map is a field of the screen's own planet ink, not a second
+		// palette: eight amber steps of Jupiter's faint-to-mid tones. A tile
+		// still separates from its neighbour by lightness, but every fill
+		// belongs to the globe above it.
+		fill := pal.ink[0].Mix(bgBase, 0.30).Mix(pal.ink[1], float32(tile.Index%4)/3)
+		if tile.Index%2 == 1 {
+			fill = fill.Mix(pal.ink[2], 0.16)
 		}
 		if tile.Index == st.hover {
-			fill = fill.Mix(Hex("#ffffff"), 0.18)
+			fill = fill.Mix(pal.ink[2], 0.40)
 		}
 		rect := Rect{X: tile.Rect.X + 1.5, Y: tile.Rect.Y + 1.5, W: tile.Rect.W - 3, H: tile.Rect.H - 3}
 		if rect.W <= 0 || rect.H <= 0 {
@@ -254,7 +273,7 @@ func (a *App) paintTreemap(p *Painter, r Rect, pal palette) {
 		}
 		p.FillGradient(rect, LinearGradient{
 			Angle: 90,
-			From:  fill.Mix(Hex("#ffffff"), 0.10),
+			From:  fill.Mix(Hex("#ffffff"), 0.03),
 			To:    fill,
 		}, radiusTile)
 		ink := readableOn(fill)
@@ -265,31 +284,25 @@ func (a *App) paintTreemap(p *Painter, r Rect, pal palette) {
 		pad := float32(8)
 		nameSize := float32(12.5)
 		sizeText := humanBytes(child.Bytes)
-		labelFits := rect.W > 70 && rect.H > 30
 		switch {
-		case labelFits:
-			// Top-left, as Mole's treemap cells: icon, name, size.
+		case rect.W >= 96 && rect.H >= 52:
+			// Top-left, as Mole's treemap cells: icon, name, size. Only this
+			// band has room for both lines without clipping the size.
 			p.Icon(glyph, Rect{X: rect.X + pad, Y: rect.Y + pad + 1, W: 12, H: 12}, ink.Alpha(0.85))
-			avail := rect.W - pad*2 - 18
-			name := child.Name
-			if w := measureTextWidth(p, name, nameSize); w > avail {
-				n := int(float64(len(name)) * float64(avail) / float64(w))
-				if n < 1 {
-					n = 1
-				}
-				name = name[:n]
-			}
+			name := fitText(p, child.Name, nameSize, rect.W-pad*2-18)
 			p.Text(rect.X+pad+18, rect.Y+pad-2, name, nameSize, ink)
-			if rect.H > 44 {
-				p.RichText(rect.X+pad+18, rect.Y+pad+16, 0, Span{
-					Text:  sizeText,
-					Font:  fontMono,
-					Size:  10,
-					Color: ink.Alpha(0.72),
-				})
-			}
-		case rect.W > 22 && rect.H > 22:
-			p.Icon(glyph, Rect{X: rect.X + rect.W/2 - 6, Y: rect.Y + rect.H/2 - 6, W: 12, H: 12}, ink.Alpha(0.7))
+			p.RichText(rect.X+pad+18, rect.Y+pad+16, 0, Span{
+				Text:  sizeText,
+				Font:  fontMono,
+				Size:  sizeMicro,
+				Color: ink.Alpha(0.90),
+			})
+		case rect.W >= 60 && rect.H >= 32:
+			p.Icon(glyph, Rect{X: rect.X + pad, Y: rect.Y + pad + 1, W: 12, H: 12}, ink.Alpha(0.85))
+			name := fitText(p, child.Name, nameSize, rect.W-pad*2-18)
+			p.Text(rect.X+pad+18, rect.Y+pad-2, name, nameSize, ink)
+		case rect.W >= 28 && rect.H >= 28:
+			p.Icon(glyph, Rect{X: rect.X + rect.W/2 - 6, Y: rect.Y + rect.H/2 - 6, W: 12, H: 12}, ink.Alpha(0.75))
 		}
 	}
 }
@@ -312,8 +325,7 @@ func (a *App) analyzeLargest(c *Context, pal palette) {
 	cardWith(c, 12, func() {
 		Row(c).FillWidth().Gap(10).AlignItems(Center).Children(func() {
 			Box(c).Size(6, 6).Radius(3).Background(pal.glow)
-			Text(c, locales.AnalyzeLargest()).FontSize(10.5).FontWeight(600).
-				LetterSpacing(1.0).TextColor(quietText()).NoWrap()
+			capsLabel(c, locales.AnalyzeLargest(), quietText())
 			if len(chosen) > 0 {
 				Text(c, locales.CleanSelected(len(chosen), humanBytes(chosenBytes))).FontSize(11).TextColor(softText())
 			}
@@ -529,4 +541,24 @@ func homeDir() string {
 func measureTextWidth(p *Painter, s string, size float32) float32 {
 	w, _ := p.MeasureText(0, Span{Text: s, Size: size})
 	return w
+}
+
+// fitText cuts s until it fits avail, rune by rune: byte slicing split
+// multi-byte names in the treemap, and a measured cut keeps the ellipsis on
+// the end of the last whole glyph.
+func fitText(p *Painter, s string, size, avail float32) string {
+	if avail <= 0 {
+		return ""
+	}
+	if measureTextWidth(p, s, size) <= avail {
+		return s
+	}
+	runes := []rune(s)
+	for n := len(runes) - 1; n > 0; n-- {
+		candidate := string(runes[:n]) + "…"
+		if measureTextWidth(p, candidate, size) <= avail {
+			return candidate
+		}
+	}
+	return "…"
 }

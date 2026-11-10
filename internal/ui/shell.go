@@ -58,9 +58,6 @@ type App struct {
 	procTable     ListState
 	procPicked    int
 
-	// ShowMain brings the main window back, wired by main.
-	ShowMain func()
-
 	// Elevate runs maintenance with administrator rights; tests replace it.
 	Elevate func(context.Context, []maint.Op) ([]maint.Result, error)
 
@@ -82,6 +79,7 @@ type App struct {
 
 // New returns the app ready to draw.
 func New(dataDir string, store *settings.Store, log *oplog.Log) *App {
+	registerFonts()
 	a := &App{
 		Screen:      firstScreen(),
 		Guard:       safety.New(),
@@ -180,8 +178,10 @@ func (a *App) View(c *Context) {
 // there is no frame clock.
 func (a *App) framePalette(c *Context) palette {
 	pal := paletteFor(a.Screen)
-	if a.Win == nil {
+	if a.Win == nil || c.Preferences().ReduceMotion {
 		frameWash = pal.wash
+		a.washFrom = a.Screen
+		a.washing = false
 		return pal
 	}
 	if a.washFrom == "" {
@@ -229,9 +229,9 @@ func (a *App) nav(c *Context, pal palette) {
 	screens := allScreens()
 	idx := screenIndex(a.Screen)
 
-	bar := Row(c).Padding(4).Radius(999).
-		Background(RGBA(255, 255, 255, 0.06)).
-		Border(1, RGBA(255, 255, 255, 0.07)).
+	bar := Row(c).Padding(4).Radius(radiusCard).
+		Background(RGBA(0, 0, 0, 0.18)).
+		Border(1, hairline()).
 		AlignItems(Center)
 	bar.Children(func() {
 		Box(c).Size(28, 28).Margin(0, 6, 0, 2).Children(func() {
@@ -241,30 +241,34 @@ func (a *App) nav(c *Context, pal palette) {
 		tabs.List.Gap(2).AlignItems(Center).Children(func() {
 			for i, screen := range screens {
 				s := screen
-				tab := tabs.Tab(i).Radius(999).Label(s.Label())
+				tab := tabs.Tab(i).Radius(radiusRow).Label(s.Label())
 				if s.ID == "settings" {
-					tab.Size(30, 30).AlignItems(Center).Justify(Center).Margin(0, 0, 0, 4)
+					tab.Size(32, 32).AlignItems(Center).Justify(Center).Margin(0, 0, 0, 4)
 				} else {
-					tab.Padding(6, 16)
+					tab.Padding(6, 14)
 				}
 				switch {
 				case i == idx:
-					tab.Background(Hex("#f7f5f0")).Shadow(0, 1, 6, 0, RGBA(0, 0, 0, 0.25))
+					// The screen's own ink is the one selected surface; the
+					// old cream chip made the tabs a second white app. The
+					// mix toward the lit tone keeps the label above 4.5:1.
+					tab.Background(pal.ink[1].Mix(pal.ink[2], 0.30))
 				case tab.Hovered():
 					tab.Background(RGBA(255, 255, 255, 0.08))
 				}
 				tab.Children(func() {
-					color := RGBA(255, 255, 255, 0.70)
+					color := RGBA(255, 255, 255, 0.72)
 					if i == idx {
-						color = Hex("#12161f")
+						color = bgBase
 					}
 					if s.ID == "settings" {
-						Icon(c, iconSettings).FontSize(14).TextColor(color)
+						Icon(c, iconSettings).FontSize(15).TextColor(color)
 						return
 					}
-					text := Text(c, s.Label()).FontSize(12.5).NoWrap().TextColor(color)
+					text := Text(c, s.Label()).Font(fontMono).FontSize(11.5).LetterSpacing(0.4).
+						NoWrap().TextColor(color)
 					if i == idx {
-						text.FontWeight(600)
+						text.FontWeight(500)
 					}
 				})
 			}
@@ -296,12 +300,20 @@ func (a *App) page(c *Context, pal palette) {
 		case "optimize":
 			a.optimizePage(c, pal)
 		case "settings":
-			a.heading(c, r)
+			a.heading(c, r, pal)
 			a.settingsPage(c, pal)
 		}
 	}
 	if fullHeight(r.ID) {
 		Column(c).FillWidth().Grow(1).Padding(4, 24, 20, 24).Gap(12).Children(body)
+		return
+	}
+	// The hero screens take the window's height, so their stage centers in
+	// the viewport instead of sitting at the top of a scrolling page.
+	if r.ID == "clean" && a.clean.heroOnly() {
+		Column(c).FillWidth().Grow(1).Padding(4, 24, 20, 24).Children(func() {
+			Column(c).FillWidth().MaxWidth(1100).Grow(1).Justify(Center).Children(body)
+		})
 		return
 	}
 	Scroll(c).FillWidth().Grow(1).Children(func() {
@@ -311,11 +323,15 @@ func (a *App) page(c *Context, pal palette) {
 	})
 }
 
-// heading is the screen's name and its one-line promise.
-func (a *App) heading(c *Context, r Screen) {
-	Column(c).FillWidth().Gap(4).Padding(14, 2, 2, 2).Children(func() {
-		Text(c, r.Label()).FontSize(24).FontWeight(600).TextColor(appTheme.Text)
-		Text(c, r.Summary()).FontSize(13).TextColor(appTheme.TextMuted).MaxWidth(640)
+// heading is the screen's name and its one-line promise. Settings carries
+// its moon beside them: the one screen without a hero still has a body.
+func (a *App) heading(c *Context, r Screen, pal palette) {
+	Row(c).FillWidth().Padding(14, 2, 2, 2).AlignItems(Center).Gap(24).Children(func() {
+		Column(c).Grow(1).Gap(4).Children(func() {
+			Text(c, r.Label()).FontSize(24).FontWeight(600).TextColor(appTheme.Text)
+			Text(c, r.Summary()).FontSize(13).TextColor(appTheme.TextMuted).MaxWidth(640)
+		})
+		planet(c, 84, pal)
 	})
 }
 
@@ -351,7 +367,7 @@ func (a *App) settingsPage(c *Context, pal palette) {
 			row(locales.PermanentDelete(onOff(permanent)),
 				locales.ScanLimits(a.Settings.MaxScanDepth, a.Settings.MaxScanEntries),
 				func() {
-					if toggle(c, &permanent).Changed() {
+					if toggle(c, &permanent, locales.PermanentDelete(onOff(permanent))).Changed() {
 						a.Settings.PermanentDelete = permanent
 						if err := a.Store.Save(a.Settings); err != nil {
 							a.SettingsErr = err.Error()
@@ -387,22 +403,23 @@ func (a *App) settingsPage(c *Context, pal palette) {
 			prev := chosen
 			row(locales.SettingsLanguage(), "", func() {
 				seg := SegmentedBase(c, &chosen, len(labels))
-				seg.Track.Padding(3).Radius(radiusPill).Background(RGBA(255, 255, 255, 0.06)).
-					Border(1, hairline()).Children(func() {
+				seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
+					Border(1, hairline()).Label(locales.SettingsLanguage()).Children(func() {
 					for i, label := range labels {
-						s := seg.Segment(i).Padding(4, 12).Radius(radiusPill).Label(label)
-						color := fgSecondary()
+						s := seg.Segment(i).Padding(6, 12).Radius(6).Label(label)
+						color := fgMuted()
 						switch {
 						case i == chosen:
-							s.Background(Hex("#f7f5f0"))
-							color = Hex("#12161f")
+							s.Background(pal.ink[1].Alpha(0.32))
+							s.Border(1, pal.ink[1].Alpha(0.55))
+							color = fgPrimary()
 						case s.Hovered():
-							s.Background(RGBA(255, 255, 255, 0.08))
+							s.Background(faintFill())
 						}
 						s.Children(func() {
-							t := Text(c, label).FontSize(11.5).NoWrap().TextColor(color)
+							t := Text(c, label).Font(fontMono).FontSize(11).NoWrap().TextColor(color)
 							if i == chosen {
-								t.FontWeight(600)
+								t.FontWeight(500)
 							}
 						})
 					}
@@ -417,7 +434,8 @@ func (a *App) settingsPage(c *Context, pal palette) {
 			block(func() {
 				Text(c, locales.WhitelistHint()).FontSize(sizeCaption).TextColor(fgMuted())
 				Row(c).Gap(8).AlignItems(Center).Children(func() {
-					field := TextInput(c, &a.newPattern).Placeholder(`C:\Users\me\AppData\Local\Keep`).Width(460)
+					field := TextInput(c, &a.newPattern).Placeholder(`C:\Users\me\AppData\Local\Keep`).
+						Label(locales.WhitelistTitle()).Width(460)
 					submitted := field.Submitted()
 					if ghostPill(c, locales.WhitelistAdd()).Clicked() || submitted {
 						a.addWhitelistPattern()

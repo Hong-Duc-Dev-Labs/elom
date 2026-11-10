@@ -7,12 +7,12 @@ import (
 	. "github.com/egoist/mygo/ui"
 )
 
-// The planets are character globes, not photographs: a grid of monospace
-// cells, one glyph per cell chosen by the surface alone. The body is lit
-// evenly — no terminator, no night side — so the whole disc stays readable
-// while continents drift under it. The look follows the ASCII-generator idea
-// (brightness ramp, edges, colour); the drawing, the bodies and the noise are
-// ours.
+// The planets are dot-matrix globes, not photographs: a Braille-style grid
+// of dots, one dot per sample of the surface, at an even pitch. The body is
+// lit evenly — no terminator, no night side — so the whole disc stays
+// readable while continents drift under it. Dot density, not glyph choice,
+// carries the tone, which is what the ASCII generator's Braille preset
+// does; the drawing, the bodies and the noise are ours.
 
 type planetKind int
 
@@ -25,16 +25,26 @@ const (
 	moon
 )
 
-// globeRamp is deliberately sparse: dense ramps turn a 64-column globe into
-// a grey block. Index 0 is blank.
-var globeRamp = []rune(" ·.:+*")
-var sunRamp = []rune(" ·*#%@")
-
-func (k planetKind) ramp() []rune {
-	if k == sun {
-		return sunRamp
+// A Braille cell is a 2x4 grid of dots, so drawing the dots directly at an
+// even pitch gives the same picture without the glyph's line-box gaps. Every
+// dot inside the disc is drawn; three ink/size tiers — dark, body, lit —
+// carry the features, so the field stays even while maria, belts and spots
+// stay readable.
+func (k planetKind) tiers() (dark, lit float32) {
+	switch k {
+	case earth:
+		return 0.42, 0.78
+	case mars:
+		return 0.50, 0.78
+	case mercury:
+		return 0.52, 0.76
+	case moon:
+		return 0.58, 0.82
+	case jupiter:
+		return 0.48, 0.80
+	default: // sun
+		return 0.54, 0.82
 	}
-	return globeRamp
 }
 
 // speed is how fast the surface turns, in radians a second.
@@ -100,137 +110,109 @@ func planet(c *Context, size float32, pal palette) Element {
 	})
 }
 
-// appMark is the nav's small planet: the sphere alone, crisp at 26 DIPs.
+// appMark is the nav's small planet: the same dot globe as the hero, on a
+// shorter dot pitch so the mark is still a sphere at 28 DIP.
 func appMark(c *Context, size float32, pal palette) Element {
 	return Box(c).Size(size, size).Draw(func(p *Painter, r Rect) {
-		d := min(r.W, r.H)
-		if d <= 0 {
-			return
-		}
-		sphere := Rect{X: r.X, Y: r.Y, W: d, H: d}
-		p.FillRadialGradient(sphere, RadialGradient{
-			Center: Point{X: 0.34, Y: 0.28},
-			Radius: d * 0.95,
-			Stops: []GradientStop{
-				{Color: pal.ink[2], At: 0},
-				{Color: pal.ink[1], At: 0.5},
-				{Color: pal.ink[0], At: 1},
-			},
-		}, d/2)
-		p.Clip(sphere, d/2, func() {
-			p.FillRadialGradient(sphere, RadialGradient{
-				Center: Point{X: 0.82, Y: 0.86},
-				Radius: d * 0.9,
-				Stops: []GradientStop{
-					{Color: Transparent, At: 0.02},
-					{Color: pal.ink[0].Alpha(0.75), At: 1},
-				},
-			}, d/2)
-		})
-		p.Stroke(sphere, pal.ink[2].Alpha(0.30), d/2, 1)
+		drawDots(p, r, pal, 0.7)
 	})
 }
 
-// drawGlobe paints the character globe into r.
+// drawGlobe paints the screen's body as a dot globe: a rotating surface at
+// 20 Hz for hero sizes, a still frame below.
 func drawGlobe(p *Painter, r Rect, pal palette) {
 	size := min(r.W, r.H)
 	if size < 12 {
 		return
 	}
-	kind := pal.body
-	targetCols := 64
-	switch {
-	case size < 40:
-		targetCols = 12
-	case size < 80:
-		targetCols = 20
-	case size < 150:
-		targetCols = 32
-	case size < 240:
-		targetCols = 48
-	}
-	fontSize := size / float32(targetCols) * 1.5
-	advance, _ := p.MeasureText(0, Span{Text: "MMMMMMMMMM", Font: fontMono, Size: fontSize})
-	if advance <= 0 {
-		return
-	}
-	cellW := advance / 10
-	cellH := cellW * 1.68
-	cols := int(size / cellW)
-	rows := int(size / cellH)
-	if cols < 6 || rows < 3 {
-		return
-	}
-
 	angle := 0.7
 	if size >= 150 && !p.Preferences().ReduceMotion {
 		p.AnimationFrameRate(20)
-		angle = float64(p.Now().UnixNano()) / 1e9 * kind.speed()
+		angle = float64(p.Now().UnixNano()) / 1e9 * pal.body.speed()
 	}
+	drawDots(p, r, pal, angle)
+}
 
-	geometry := globeGeometry(cols, rows)
-	ramp := kind.ramp()
-	// Two tones: the body's base and its lit surface. With no shadow there is
-	// no night side for the faint tone to describe, and a disc in the faintest
-	// ink is the thing that was hard to see.
-	tones := [2][]rune{
-		fillRunes(' ', cols),
-		fillRunes(' ', cols),
+// drawDots paints the sphere as a Braille-style dot matrix: one dot per
+// sampled cell, at one pitch, about 64 dots across a hero. A Braille glyph
+// is the same 2x4 dot picture, but its line box leaves horizontal gaps
+// between rows; drawing the dots directly makes the surface evenly dense
+// and the limb round. Brightness becomes dot density through an ordered
+// threshold, so the tone changes without glyph steps.
+func drawDots(p *Painter, r Rect, pal palette, angle float64) {
+	size := min(r.W, r.H)
+	if size < 8 {
+		return
 	}
-	used := [2]bool{}
+	// A whole-DIP pitch keeps the dot grid even: a fractional pitch rounds
+	// to alternating 3 and 4 DIP gaps, which reads as a wobbling grid.
+	pitch := float32(int(math.Round(float64(size / 56))))
+	if size < 150 {
+		pitch = float32(int(math.Round(float64(size / 30))))
+	}
+	if pitch < 2 {
+		pitch = 2
+	}
+	dotCols := int(size / pitch)
+	if dotCols < 10 {
+		dotCols = 10
+		pitch = size / float32(dotCols)
+	}
+	dotRows := dotCols
+	if dotRows < 6 {
+		return
+	}
+	// Every dot is present; brightness also changes its size and ink, which
+	// is what makes continents, belts and spots readable at this scale.
+	dotBase := max(1, pitch-2)
+	dotLit := min(pitch-0.5, dotBase+1)
+	if size < 150 {
+		// Small tiles cannot afford a whole extra pixel: the lit dots merge
+		// into white blobs. A half-step keeps the feature without the blob.
+		dotLit = min(pitch-0.5, dotBase+0.5)
+	}
+	dark := pal.ink[0]
 
-	x0 := r.X + (r.W-float32(cols)*cellW)/2
-	y0 := r.Y + (r.H-float32(rows)*cellH)/2
+	geometry := globeGeometry(dotCols, dotRows)
+	// The floor is darker than the palette's mid ink so oceans read as
+	// water instead of a flat field; every dot is still present.
+	base := pal.ink[0].Mix(pal.ink[1], 0.35)
+	if pal.body == sun {
+		// The sun is emissive: its dots start at the amber mid tone, not the
+		// dark end, or the disc reads as a brown ball.
+		base = pal.ink[1]
+	}
+	lit := pal.ink[2]
+	x0 := float32(math.Round(float64(r.X + (r.W-float32(dotCols)*pitch)/2)))
+	y0 := float32(math.Round(float64(r.Y + (r.H-float32(dotRows)*pitch)/2)))
 
-	for row := 0; row < rows; row++ {
-		for t := range tones {
-			clearRunes(tones[t])
-			used[t] = false
-		}
-		for col := range cols {
-			cell := geometry[row*cols+col]
+	for row := range dotRows {
+		for col := range dotCols {
+			cell := geometry[row*dotCols+col]
 			if !cell.inside {
 				continue
 			}
-			b := globeBrightness(kind, cell, angle)
-			idx := 1 + int(b*float32(len(ramp)-2))
-			// Every cell inside the limb is inked: the body is shown whole,
-			// not as a lit crescent over a field of dots.
-			if idx >= len(ramp) {
-				idx = len(ramp) - 1
+			b := globeBrightness(pal.body, cell, angle) * (0.82 + 0.18*cell.z)
+			darkT, litT := pal.body.tiers()
+			if size < 40 {
+				// A nav mark has no room for three tiers: they merge into a
+				// white blob, so it stays a calm one-tone sphere.
+				darkT, litT = 0.2, 1.1
 			}
-			tone := 0
-			if b >= 0.78 {
-				tone = 1
+			ink, dot := base, dotBase
+			switch {
+			case b >= litT:
+				ink, dot = lit, dotLit
+			case b < darkT:
+				ink = dark
 			}
-			tones[tone][col] = ramp[idx]
-			used[tone] = true
+			p.Fill(Rect{
+				X: x0 + float32(col)*pitch + (pitch-dot)/2,
+				Y: y0 + float32(row)*pitch + (pitch-dot)/2,
+				W: dot,
+				H: dot,
+			}, ink, 0)
 		}
-		for t := range tones {
-			if !used[t] {
-				continue
-			}
-			p.RichText(x0, y0+float32(row)*cellH, 0, Span{
-				Text:  string(tones[t]),
-				Font:  fontMono,
-				Size:  fontSize,
-				Color: pal.ink[t+1],
-			})
-		}
-	}
-}
-
-func fillRunes(r rune, n int) []rune {
-	out := make([]rune, n)
-	for i := range out {
-		out[i] = r
-	}
-	return out
-}
-
-func clearRunes(rs []rune) {
-	for i := range rs {
-		rs[i] = ' '
 	}
 }
 
@@ -259,23 +241,41 @@ func globeBrightness(kind planetKind, cell globeCell, angle float64) float32 {
 func bodyTexture(kind planetKind, lon, lat float64) float64 {
 	switch kind {
 	case earth:
-		land := smoothstep(0.48, 0.56, fbm(lon*1.1+8, lat*1.1+3, 11, 4))
-		ice := smoothstep(1.00, 1.16, math.Abs(lat))
-		return 0.30 + 0.70*land*(1-ice) + ice
+		// Two broad landmasses with a bright relief and white caps: at tile
+		// size the silhouette and the caps are what make it Earth.
+		land := smoothstep(0.46, 0.62, fbm(lon*1.3+8, lat*1.3+3, 11, 3))
+		ice := float64(0)
+		ocean := 0.22 + 0.10*fbm(lon*1.1+5, lat*1.1+2, 12, 2)
+		relief := 0.80 + 0.20*fbm(lon*1.7+2, lat*1.7+7, 13, 2)
+		return math.Min(1, (ocean+relief*land)*(1-ice)+ice)
 	case mars:
-		cr := smoothstep(0.46, 0.54, fbm(lon*1.7+2, lat*1.7+6, 14, 4))
-		ice := smoothstep(1.07, 1.20, math.Abs(lat))
-		return 0.40 + 0.60*cr*(1-ice) + ice
+		// Dark albedo seas over rust, with bright polar caps.
+		albedo := smoothstep(0.42, 0.60, fbm(lon*1.2+2, lat*1.2+6, 14, 3))
+		ice := smoothstep(1.40, 1.50, math.Abs(lat))
+		base := 0.30 + 0.08*fbm(lon*1.3+7, lat*1.3+4, 15, 2)
+		return math.Min(1, (base+0.58*albedo)*(1-ice)+ice)
 	case mercury:
-		return 0.45 + 0.55*smoothstep(0.45, 0.55, fbm(lon*2.0+1, lat*2.0+9, 16, 4))
+		// A grey body of broad darker basins and bright crater rays.
+		basin := smoothstep(0.34, 0.58, fbm(lon*1.2+3, lat*1.2+8, 17, 3))
+		rays := smoothstep(0.60, 0.78, fbm(lon*1.2+1, lat*1.2+9, 16, 2))
+		return math.Min(1, 0.30+0.48*basin+0.26*rays)
 	case moon:
-		return 0.45 + 0.50*smoothstep(0.47, 0.53, fbm(lon*1.8+4, lat*1.8+1, 18, 4))
+		// Broad dark maria over bright highlands: the pattern is the only
+		// way to tell the Moon from Mercury at 40 dots.
+		maria := smoothstep(0.42, 0.62, fbm(lon*1.0+6, lat*1.0+5, 19, 3))
+		high := 0.72 + 0.18*fbm(lon*1.5+4, lat*1.5+1, 18, 2)
+		return math.Min(1, high*(1-0.62*maria)+0.10)
 	case jupiter:
-		band := 0.5 + 0.5*math.Sin(lat*8+0.5*math.Sin(lon*2.2))
-		storm := math.Exp(-(math.Pow((lon-1.2)/0.35, 2) + math.Pow((lat+0.35)/0.22, 2)))
-		return math.Min(1, 0.55+0.45*band+0.30*storm)
+		// Strong belts and a storm oval, the one feature that reads at 40 dots.
+		band := 0.5 + 0.45*math.Sin(lat*5.2+0.35*math.Sin(lon*1.4))
+		storm := math.Exp(-(math.Pow((lon-1.2)/0.55, 2) + math.Pow((lat+0.30)/0.32, 2)))
+		return math.Max(0.18, math.Min(1, 0.12+0.92*band-0.30*storm))
 	default: // sun
-		return 0.45 + 0.55*fbm(lon*2.6+2, lat*2.6+6, 21, 4)
+		// Granulation with two sunspots: a uniform amber disc said nothing.
+		gran := 0.55 + 0.45*fbm(lon*1.8+2, lat*1.8+6, 21, 3)
+		spot := math.Exp(-(math.Pow((lon-0.6)/0.36, 2) + math.Pow((lat-0.2)/0.26, 2))) +
+			0.8*math.Exp(-(math.Pow((lon+2.1)/0.40, 2) + math.Pow((lat+0.5)/0.30, 2)))
+		return math.Max(0.18, gran-0.70*spot)
 	}
 }
 

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math"
+	"strings"
 
 	. "github.com/egoist/mygo/ui"
 	"github.com/egoist/mygo/ui/chart"
@@ -14,12 +15,11 @@ import (
 // Mole's UI (TabWash.cs, HudTile.cs, TabWashes.cs) and are ours to use; no
 // asset or glyph path is copied.
 
-// Font stacks, with the Windows 10 fallbacks: Segoe UI Variable ships with
-// Windows 11, Cascadia Mono with Windows Terminal, Georgia everywhere.
+// Font stacks: the bundled Geist families first, then the system faces a
+// machine without them still has (Windows 10/11 and Windows Terminal).
 const (
-	fontDisplay = "Segoe UI Variable Display, Segoe UI"
-	fontBody    = "Segoe UI Variable Text, Segoe UI"
-	fontMono    = "Cascadia Mono, Consolas"
+	fontBody = "Geist, Segoe UI Variable Text, Segoe UI"
+	fontMono = "Geist Mono, Cascadia Mono, Consolas"
 )
 
 // Base and accent, as Mole's Surface.cs.
@@ -32,8 +32,10 @@ var (
 const (
 	sizeFootnote = 10.0
 	sizeCaption  = 11.0
+	sizeMeta     = 11.5
+	sizeMicro    = 10.5
 	sizeBody     = 13.5
-	sizeValue    = 26.0
+	sizeValue    = 24.0
 
 	radiusCard  = 12.0
 	radiusRow   = 8.0
@@ -194,8 +196,8 @@ func frameCard() Color { return cardGround(frameWash) }
 
 func fgPrimary() Color   { return Hex("#ededee") }
 func fgSecondary() Color { return RGBA(237, 236, 238, 0.72) }
-func fgMuted() Color     { return RGBA(237, 236, 238, 0.55) }
-func fgFaint() Color     { return RGBA(237, 236, 238, 0.35) }
+func fgMuted() Color     { return RGBA(237, 236, 238, 0.62) }
+func fgFaint() Color     { return RGBA(237, 236, 238, 0.52) }
 func hairline() Color    { return RGBA(237, 236, 238, 0.078) }
 func faintFill() Color   { return RGBA(255, 255, 255, 0.055) }
 func faintFill2() Color  { return RGBA(255, 255, 255, 0.09) }
@@ -228,13 +230,20 @@ func cardWith(c *Context, gap float32, fn func()) Element {
 	})
 }
 
+// capsLabel is one voice for every small capital on the character grid:
+// mono, 9.5, tracked. Screens that used to invent 10.5/600/1.0 or 9.5/600/1.1
+// labels route through it so the data chrome matches the globe's cells.
+func capsLabel(c *Context, label string, color Color) {
+	Text(c, strings.ToUpper(label)).Font(fontMono).FontSize(9.5).FontWeight(500).
+		LetterSpacing(1.1).TextColor(color).NoWrap()
+}
+
 // cardHead is a card's title row: a small colored dot, the label in tracked
 // capitals, and room for a value or an action on the right.
 func cardHead(c *Context, pal palette, label, meta string) {
 	Row(c).FillWidth().AlignItems(Center).Gap(8).Children(func() {
 		Box(c).Size(6, 6).Radius(3).Background(pal.glow)
-		Text(c, label).FontSize(sizeFootnote).FontWeight(700).
-			LetterSpacing(0.8).TextColor(fgMuted()).NoWrap()
+		capsLabel(c, label, fgMuted())
 		Spacer(c)
 		if meta != "" {
 			Text(c, meta).FontSize(sizeCaption).TextColor(fgMuted()).NoWrap()
@@ -250,9 +259,11 @@ func rule(c *Context) {
 // bigNumber is a screen's result: a large figure with its unit beside it.
 func bigNumber(c *Context, value, unit string) {
 	Row(c).AlignItems(End).Gap(4).Children(func() {
-		Text(c, value).Font(fontDisplay).FontSize(sizeValue).FontWeight(600).TextColor(fgPrimary()).NoWrap()
+		// Values are data, so they take the character grid's voice: a mono
+		// figure keeps every tile on the same digit rhythm as the globe.
+		Text(c, value).Font(fontMono).FontSize(sizeValue).FontWeight(500).TextColor(fgPrimary()).NoWrap()
 		if unit != "" {
-			Text(c, unit).FontSize(13).FontWeight(500).TextColor(fgMuted()).Margin(0, 0, 3, 0)
+			Text(c, unit).Font(fontMono).FontSize(12).TextColor(fgMuted()).Margin(0, 0, 3, 0)
 		}
 	})
 }
@@ -266,16 +277,18 @@ func primaryPill(c *Context, label string) Element {
 	return PrimaryButton(c, label).Radius(radiusPill).Padding(9, 24)
 }
 
-// ghostPill is a secondary action beside primaryPill.
+// ghostPill is a secondary action beside primaryPill. Only the primary
+// capsule stays fully round; a row of capsules out-shouted the 1 DIP cells
+// of the globe.
 func ghostPill(c *Context, label string) Element {
-	return Button(c, label).Radius(radiusPill).Padding(9, 20)
+	return Button(c, label).Radius(radiusRow).Padding(8, 14)
 }
 
 // pillTag is a small neutral chip, as "needs administrator" on a task.
 func pillTag(c *Context, label string, fg Color) Element {
-	return Box(c).Padding(3, 9).Radius(radiusPill).Background(faintFill2()).
+	return Box(c).Padding(3, 9).Radius(radiusRow).Background(faintFill2()).
 		Border(1, hairline()).Children(func() {
-		Text(c, label).FontSize(sizeFootnote).TextColor(fg).NoWrap()
+		Text(c, label).Font(fontMono).FontSize(sizeFootnote).TextColor(fg).NoWrap()
 	})
 }
 
@@ -292,10 +305,15 @@ func rowDivider(c *Context) {
 	Box(c).FillWidth().Height(1).Margin(0, 8).Background(hairline())
 }
 
-// bar is a track with a filled part, 0 to 1, rounded and tinted.
+// bar is a track with a filled part, 0 to 1, rounded and tinted. The track
+// is a row of 1 DIP characters rather than a solid wash, so a meter belongs
+// to the same grid as the globe.
 func bar(c *Context, fraction float32, color Color, height float32) Element {
 	return Box(c).FillWidth().Height(height).Radius(height/2).
-		Background(RGBA(255, 255, 255, 0.10)).Draw(func(p *Painter, r Rect) {
+		Draw(func(p *Painter, r Rect) {
+		for x := r.X; x < r.X+r.W; x += 4 {
+			p.Fill(Rect{X: x, Y: r.Y, W: 1, H: r.H}, RGBA(255, 255, 255, 0.18), 0)
+		}
 		w := r.W * clampFrac(fraction)
 		if w <= 0 {
 			return
@@ -309,12 +327,12 @@ func bar(c *Context, fraction float32, color Color, height float32) Element {
 }
 
 // toggle is a switch whose track stays visible under the white knob.
-func toggle(c *Context, on *bool) Element {
+func toggle(c *Context, on *bool, label string) Element {
 	track := RGBA(255, 255, 255, 0.16)
 	if *on {
 		track = accentMint.Alpha(0.85)
 	}
-	return Switch(c, on).Background(track)
+	return Switch(c, on).Background(track).Size(44, 24).Radius(12).Label(label)
 }
 
 // barsChart draws a series as a row of thin bars, as Mole's CPU reading.
@@ -378,6 +396,22 @@ func perCoreBars(c *Context, cores []float64, height float32) Element {
 	})
 }
 
+// chartField is the character-grid the vector series sit on: a baseline
+// plus dotted quarter lines, so a curve has the same measured field as the
+// globe's cells without turning the reading into a bar chart.
+func chartField(p *Painter, r Rect) {
+	if r.W <= 0 || r.H <= 0 {
+		return
+	}
+	for _, f := range []float32{0.25, 0.5, 0.75} {
+		y := r.Y + r.H*(1-f)
+		for x := r.X; x < r.X+r.W; x += 8 {
+			p.Fill(Rect{X: x, Y: y, W: 2, H: 1}, RGBA(255, 255, 255, 0.055), 0)
+		}
+	}
+	p.Fill(Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, RGBA(255, 255, 255, 0.10), 0)
+}
+
 // areaChart draws a series as a soft filled curve, as Mole's network card.
 func areaChart(c *Context, series []float64, maxValue float64, color Color, height float32) Element {
 	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
@@ -385,6 +419,7 @@ func areaChart(c *Context, series []float64, maxValue float64, color Color, heig
 		if n < 2 || maxValue <= 0 || r.W <= 0 {
 			return
 		}
+		chartField(p, r)
 		xs := make([]float32, n)
 		ys := make([]float32, n)
 		for i, v := range series {
@@ -407,9 +442,10 @@ func netChart(c *Context, down, up []float64, maxValue float64, height float32) 
 	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
 		n := max(len(down), len(up))
 		if n < 2 || maxValue <= 0 || r.W <= 0 {
-			p.Fill(Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, RGBA(255, 255, 255, 0.10), 0)
+			chartField(p, r)
 			return
 		}
+		chartField(p, r)
 		series := func(v []float64) ([]float32, []float32) {
 			xs := make([]float32, n)
 			ys := make([]float32, n)
@@ -441,6 +477,7 @@ func lineChart(c *Context, series []float64, maxValue float64, color Color, heig
 		if n < 2 || maxValue <= 0 || r.W <= 0 {
 			return
 		}
+		chartField(p, r)
 		xs := make([]float32, n)
 		ys := make([]float32, n)
 		for i, v := range series {
@@ -451,14 +488,35 @@ func lineChart(c *Context, series []float64, maxValue float64, color Color, heig
 	})
 }
 
-// readableOn picks dark or light text for a filled tile, so treemap labels
-// stay legible on every band of the palette.
+// readableOn picks the ink with the higher measured contrast on a filled
+// tile, rather than guessing from the fill's brightness: a mid amber tile
+// can sit between the two candidates.
 func readableOn(fill Color) Color {
-	l := 0.2126*float32(fill.R) + 0.7152*float32(fill.G) + 0.0722*float32(fill.B)
-	if l > 148 {
-		return Hex("#2a1a0d")
+	dark, light := Hex("#1f1206"), Hex("#fffaf0")
+	if contrastOf(dark, fill) >= contrastOf(light, fill) {
+		return dark
 	}
-	return Hex("#fffaf0")
+	return light
+}
+
+// colorLuminance is the sRGB relative luminance used for ink decisions.
+func colorLuminance(c Color) float64 {
+	lin := func(v uint8) float64 {
+		f := float64(v) / 255
+		if f <= 0.03928 {
+			return f / 12.92
+		}
+		return math.Pow((f+0.055)/1.055, 2.4)
+	}
+	return 0.2126*lin(c.R) + 0.7152*lin(c.G) + 0.0722*lin(c.B)
+}
+
+func contrastOf(a, b Color) float64 {
+	hi, lo := colorLuminance(a), colorLuminance(b)
+	if hi < lo {
+		hi, lo = lo, hi
+	}
+	return (hi + 0.05) / (lo + 0.05)
 }
 
 // percentOf is used by the cards that show a share of a whole.

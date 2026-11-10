@@ -3,7 +3,6 @@ package ui
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
@@ -37,6 +36,12 @@ type cleanState struct {
 
 func newCleanState() cleanState {
 	return cleanState{checked: map[string]bool{}}
+}
+
+// heroOnly reports whether the screen is the stage rather than the review
+// list: the page branch gives it the window's height so it can center.
+func (s *cleanState) heroOnly() bool {
+	return !s.reviewing || len(s.candidates) == 0
 }
 
 // cleanPage draws the review screen: what was found, what is selected, and
@@ -79,9 +84,9 @@ func (a *App) cleanPage(c *Context, pal palette) {
 		return
 	case !st.scanned:
 		a.cleanHero(c, pal, 232, func() {
-			Text(c, locales.CleanNote()).FontSize(13).TextColor(appTheme.TextMuted).
-				MaxWidth(500).TextAlign(Center).LineHeight(1.5)
-			if primaryPill(c, locales.CleanScan()).Clicked() {
+			Text(c, locales.CleanNote()).FontSize(13.5).TextColor(appTheme.TextMuted).
+				MaxWidth(460).TextAlign(Center).LineHeight(1.55)
+			if primaryPill(c, locales.CleanScan()).Width(220).Height(44).Clicked() {
 				a.startScan()
 			}
 		})
@@ -96,7 +101,7 @@ func (a *App) cleanPage(c *Context, pal palette) {
 
 	if !st.reviewing || len(st.candidates) == 0 {
 		a.cleanHero(c, pal, 196, func() {
-			Text(c, locales.CleanFound(humanBytes(total))).FontSize(30).FontWeight(700).
+			Text(c, locales.CleanFound(humanBytes(total))).Font(fontMono).FontSize(26).FontWeight(500).
 				TextColor(appTheme.Text).NoWrap()
 			Row(c).Gap(6).AlignItems(Center).Children(func() {
 				Text(c, locales.CleanCleanable(humanBytes(bytes))).FontSize(12).TextColor(quietText())
@@ -109,7 +114,7 @@ func (a *App) cleanPage(c *Context, pal palette) {
 					a.startScan()
 				}
 			})
-			if len(st.candidates) > 0 && primaryPill(c, locales.CleanReview()).Width(220).Margin(8, 0, 0, 0).Clicked() {
+			if len(st.candidates) > 0 && primaryPill(c, locales.CleanReview()).Width(220).Height(44).Margin(8, 0, 0, 0).Clicked() {
 				st.reviewing = true
 			}
 			if st.finished != "" {
@@ -128,12 +133,12 @@ func (a *App) cleanPage(c *Context, pal palette) {
 		if iconButton(c, iconBack, locales.CleanBack()).Clicked() {
 			st.reviewing = false
 		}
-		planet(c, 34, pal)
-		Column(c).Gap(2).Children(func() {
-			Text(c, locales.CleanFound(humanBytes(total))).FontSize(18).FontWeight(700).
+		planet(c, 96, pal)
+		Column(c).Gap(3).Children(func() {
+			Text(c, locales.CleanFound(humanBytes(total))).Font(fontMono).FontSize(sizeValue).FontWeight(500).
 				TextColor(appTheme.Text).NoWrap()
-			Text(c, locales.CleanSelected(selected, humanBytes(bytes))).FontSize(12).
-				TextColor(quietText())
+			Text(c, locales.CleanSelected(selected, humanBytes(bytes))).FontSize(13.5).
+				TextColor(fgSecondary())
 		})
 		Spacer(c)
 		if st.finished != "" {
@@ -147,7 +152,7 @@ func (a *App) cleanPage(c *Context, pal palette) {
 			if a.Settings.PermanentDelete {
 				label = locales.CleanDeletePermanent()
 			}
-			if primaryPill(c, label).Clicked() {
+			if primaryPill(c, label).MinWidth(200).Height(44).Clicked() {
 				a.deleteSelected()
 			}
 		}
@@ -169,11 +174,12 @@ func (a *App) cleanPage(c *Context, pal palette) {
 					sum += cand.Bytes
 				}
 				Column(c).Gap(1).Children(func() {
-					Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(4, 10, 2, 10).Children(func() {
-						Text(c, strings.ToUpper(category)).FontSize(9.5).FontWeight(600).
-							LetterSpacing(1.1).TextColor(quietText())
+					Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(4, 8, 2, 8).Children(func() {
+						Box(c).Size(6, 6).Radius(3).Background(pal.glow)
+						capsLabel(c, category, quietText())
 						Spacer(c)
-						Text(c, humanBytes(sum)).FontSize(10.5).TextColor(quietText())
+						Text(c, humanBytes(sum)).Font(fontMono).FontSize(sizeMicro).
+							TextColor(quietText()).Width(84).TextAlign(End)
 					})
 					for j, cand := range group {
 						a.candidateRow(c, cand)
@@ -187,11 +193,17 @@ func (a *App) cleanPage(c *Context, pal palette) {
 	})
 }
 
-// cleanHero is the centered planet and the one action above the review.
+// cleanHero is the centered planet and the one action above the review: one
+// stage, vertically placed in the window, with a horizon under the globe and
+// a local halo, rather than a globe dropped at the top of a scroll page.
 func (a *App) cleanHero(c *Context, pal palette, size float32, content func()) {
-	Column(c).FillWidth().AlignItems(Center).Padding(56, 0, 6, 0).Gap(30).Children(func() {
-		planet(c, size, pal)
-		Column(c).FillWidth().AlignItems(Center).Gap(10).Children(content)
+	Column(c).FillWidth().AlignItems(Center).
+		Padding(16, 0, 16, 0).Gap(28).Children(func() {
+		Column(c).AlignItems(Center).Gap(10).Children(func() {
+			planet(c, size, pal)
+			Box(c).Width(280).Height(1).Background(hairline())
+		})
+		Column(c).FillWidth().AlignItems(Center).Gap(12).Children(content)
 	})
 }
 
@@ -202,7 +214,9 @@ func (a *App) candidateRow(c *Context, cand scan.Candidate) {
 			Text(c, "—").Width(18).TextColor(quietText())
 		} else {
 			checked := a.clean.checked[cand.Path]
-			box := Checkbox(c, &checked, "")
+			// The third argument is the visible caption; the path belongs on
+			// the row, not beside the box, so it goes on the accessible name.
+			box := Checkbox(c, &checked, "").Label(cand.Path)
 			if box.Changed() {
 				a.clean.checked[cand.Path] = checked
 			}
@@ -216,7 +230,8 @@ func (a *App) candidateRow(c *Context, cand scan.Candidate) {
 				Text(c, cand.Note).FontSize(sizeCaption).TextColor(fgMuted())
 			}
 		})
-		Text(c, humanBytes(cand.Bytes)).Font(fontMono).FontSize(11.5).TextColor(fgSecondary()).NoWrap()
+		Text(c, humanBytes(cand.Bytes)).Font(fontMono).FontSize(sizeMeta).
+			TextColor(fgSecondary()).Width(84).TextAlign(End).NoWrap()
 	})
 	if row.Hovered() {
 		row.Background(faintFill())

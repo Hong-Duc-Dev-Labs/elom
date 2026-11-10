@@ -57,17 +57,20 @@ func routineTasks() []maint.Task {
 func (a *App) optimizePage(c *Context, pal palette) {
 	st := &a.optimize
 
-	Column(c).FillWidth().AlignItems(Center).Padding(56, 0, 10, 0).Gap(30).Children(func() {
-		planet(c, 196, pal)
+	Column(c).FillWidth().AlignItems(Center).Padding(28, 0, 10, 0).Gap(28).Children(func() {
+		Column(c).AlignItems(Center).Gap(10).Children(func() {
+			planet(c, 196, pal)
+			Box(c).Width(280).Height(1).Background(hairline())
+		})
 		Column(c).FillWidth().AlignItems(Center).Gap(14).Children(func() {
-			Text(c, locales.OptimizePoem()).Font("Georgia").FontSize(14).LineHeight(1.6).
+			Text(c, locales.OptimizePoem()).Font(fontMono).FontSize(12.5).LineHeight(1.7).
 				TextAlign(Center).TextColor(softText())
 			if st.running != "" {
 				Row(c).Gap(10).AlignItems(Center).Children(func() {
 					Spinner(c)
 					Text(c, st.note).FontSize(12.5).TextColor(appTheme.TextMuted)
 				})
-			} else if primaryPill(c, locales.OptimizeAll()).Width(220).Clicked() {
+			} else if primaryPill(c, locales.OptimizeAll()).Width(220).Height(44).Clicked() {
 				a.runRoutine()
 			}
 			if st.note != "" && st.running == "" {
@@ -80,9 +83,10 @@ func (a *App) optimizePage(c *Context, pal palette) {
 	cardWith(c, 4, func() {
 		cardHead(c, pal, strings.ToUpper(locales.OptimizeTasks()), "")
 		Box(c).Height(6)
-		for _, task := range userTasks() {
+		tasks := userTasks()
+		for i, task := range tasks {
 			task := task
-			row := Row(c).FillWidth().Gap(12).AlignItems(Center).Padding(9, 8).Radius(10)
+			row := Row(c).FillWidth().Gap(12).AlignItems(Center).Padding(9, 8)
 			row.Children(func() {
 				Column(c).Grow(1).Gap(3).Children(func() {
 					Row(c).Gap(8).AlignItems(Center).Children(func() {
@@ -94,7 +98,7 @@ func (a *App) optimizePage(c *Context, pal palette) {
 							pillTag(c, locales.OptimizeCareful(), appTheme.Danger)
 						}
 					})
-					Text(c, task.Detail).FontSize(11.5).TextColor(appTheme.TextMuted)
+					Text(c, task.Detail).FontSize(11).TextColor(appTheme.TextMuted)
 					if result, ok := st.results[task.Op]; ok {
 						line := locales.OptimizeDone(result.Detail)
 						color := appTheme.Success
@@ -102,7 +106,7 @@ func (a *App) optimizePage(c *Context, pal palette) {
 							line = locales.OptimizeFailed(result.Err)
 							color = appTheme.Danger
 						}
-						Text(c, trim(line, 160)).FontSize(11.5).TextColor(color)
+						Text(c, trim(line, 160)).Font(fontMono).FontSize(sizeMicro).TextColor(color)
 					}
 				})
 				switch {
@@ -114,8 +118,8 @@ func (a *App) optimizePage(c *Context, pal palette) {
 					}
 				}
 			})
-			if row.Hovered() {
-				row.Background(faintFill())
+			if i < len(tasks)-1 {
+				rowDivider(c)
 			}
 		}
 		Box(c).Height(4)

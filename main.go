@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"fmt"
 	"log"
 	"os"
@@ -15,15 +14,9 @@ import (
 	"elom/internal/ui"
 )
 
-//go:embed resources/tray.png
-var trayPNG []byte
-
 type mainApp struct {
-	app      *ui.App
-	win      *mygo.Window
-	tray     *mygo.Tray
-	flyout   *mygo.Window
-	quitting bool
+	app *ui.App
+	win *mygo.Window
 }
 
 func main() {
@@ -42,7 +35,6 @@ func main() {
 	m := &mainApp{}
 	mygo.App.OnSecondInstance(func([]string, string) { m.show() })
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
-		m.quitting = true
 		if m.app != nil {
 			m.app.Stop()
 		}
@@ -96,66 +88,10 @@ func (m *mainApp) ready() {
 		Content:         View(m.app.View),
 	})
 	m.app.Win = m.win
-	m.app.ShowMain = m.show
 	m.app.StartStatus()
 
-	m.win.OnClose(func(e *mygo.CloseEvent) {
-		if m.quitting {
-			return
-		}
-		// Closing the window keeps the app in the tray, as a system utility
-		// does; the tray panel's Quit is the way out.
-		e.PreventDefault()
-		m.win.Hide()
-	})
-
-	tray, err := mygo.NewTray(mygo.TrayOptions{
-		ID:      "main",
-		Icon:    trayPNG,
-		ToolTip: "Elom",
-	})
-	if err != nil {
-		// A missing tray icon is not fatal: the window still works.
-		log.Println("tray:", err)
-		return
-	}
-	m.tray = tray
-
-	m.flyout = mygo.NewFlyout(mygo.FlyoutOptions{
-		Tray:         tray,
-		Width:        360,
-		Height:       600,
-		Focusable:    true,
-		Vibrancy:     mygo.VibrancyMenu,
-		CornerRadius: 12,
-		Content:      View(m.app.PanelView),
-	})
-	tray.OnClick(m.togglePanel)
-	tray.OnRightClick(func() {
-		menu := mygo.NewMenu([]*mygo.MenuItem{
-			{Label: "Open Elom", Click: func(*mygo.MenuItem, *mygo.Window) { m.show() }},
-			mygo.Separator(),
-			{Role: mygo.RoleQuit},
-		})
-		tray.SetMenu(menu)
-		tray.PopUpMenu()
-		tray.SetMenu(nil)
-	})
-
-	if err := mygo.GlobalShortcut.Register("Ctrl+Alt+E", m.togglePanel); err != nil {
-		log.Println("global shortcut:", err)
-	}
-}
-
-func (m *mainApp) togglePanel() {
-	if m.flyout == nil {
-		return
-	}
-	if m.flyout.IsVisible() {
-		m.flyout.Hide()
-		return
-	}
-	m.flyout.Show()
+	// Elom is a window, not a system utility: closing it is how the user
+	// quits, and no tray icon, flyout, shortcut or sampler outlives it.
 }
 
 func (m *mainApp) show() {

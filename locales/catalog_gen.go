@@ -513,11 +513,11 @@ func (msgs Messages) CleanEmpty() string {
 	return Catalog.Format(msgs.locale, "cleanEmpty", nil)
 }
 
-// CleanNote says "Elom measures these folders before it offers anything. Nothing is removed until you confirm, and it goes to the Recyc…"
+// CleanNote says "Elom measures these folders before it offers anything.\nNothing is removed until you confirm, and it goes to the Recyc…"
 // in the language the app shows.
 func CleanNote() string { return In(i18n.Locale()).CleanNote() }
 
-// CleanNote says "Elom measures these folders before it offers anything. Nothing is removed until you confirm, and it goes to the Recyc…"
+// CleanNote says "Elom measures these folders before it offers anything.\nNothing is removed until you confirm, and it goes to the Recyc…"
 // in the language of msgs.
 func (msgs Messages) CleanNote() string {
 	return Catalog.Format(msgs.locale, "cleanNote", nil)
@@ -823,36 +823,6 @@ func StatusUp(rate string) string { return In(i18n.Locale()).StatusUp(rate) }
 // in the language of msgs.
 func (msgs Messages) StatusUp(rate string) string {
 	return Catalog.Format(msgs.locale, "statusUp", map[string]any{"rate": rate})
-}
-
-// PanelTitle says "Elom"
-// in the language the app shows.
-func PanelTitle() string { return In(i18n.Locale()).PanelTitle() }
-
-// PanelTitle says "Elom"
-// in the language of msgs.
-func (msgs Messages) PanelTitle() string {
-	return Catalog.Format(msgs.locale, "panelTitle", nil)
-}
-
-// PanelOpen says "Open Elom"
-// in the language the app shows.
-func PanelOpen() string { return In(i18n.Locale()).PanelOpen() }
-
-// PanelOpen says "Open Elom"
-// in the language of msgs.
-func (msgs Messages) PanelOpen() string {
-	return Catalog.Format(msgs.locale, "panelOpen", nil)
-}
-
-// PanelQuit says "Quit"
-// in the language the app shows.
-func PanelQuit() string { return In(i18n.Locale()).PanelQuit() }
-
-// PanelQuit says "Quit"
-// in the language of msgs.
-func (msgs Messages) PanelQuit() string {
-	return Catalog.Format(msgs.locale, "panelQuit", nil)
 }
 
 // SoftwareLoad says "Load installed apps"
@@ -1661,16 +1631,6 @@ func StatusPressureHigh() string { return In(i18n.Locale()).StatusPressureHigh()
 // in the language of msgs.
 func (msgs Messages) StatusPressureHigh() string {
 	return Catalog.Format(msgs.locale, "statusPressureHigh", nil)
-}
-
-// PanelTopProcesses says "Top processes"
-// in the language the app shows.
-func PanelTopProcesses() string { return In(i18n.Locale()).PanelTopProcesses() }
-
-// PanelTopProcesses says "Top processes"
-// in the language of msgs.
-func (msgs Messages) PanelTopProcesses() string {
-	return Catalog.Format(msgs.locale, "panelTopProcesses", nil)
 }
 
 // AppsPublisher says "Publisher"

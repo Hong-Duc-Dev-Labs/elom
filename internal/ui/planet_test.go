@@ -92,12 +92,14 @@ func TestGlobeSurfaceTurns(t *testing.T) {
 	}
 }
 
-func TestGlobeRampsAreSparse(t *testing.T) {
-	if len(globeRamp) > 8 || len(sunRamp) > 8 {
-		t.Fatalf("ramps are too dense for a character globe: %d, %d", len(globeRamp), len(sunRamp))
-	}
-	if globeRamp[0] != ' ' {
-		t.Fatalf("the ramp must start blank, got %q", globeRamp[0])
+// Every dot is drawn; the tiers decide its ink and size. A body whose dark
+// threshold overtook its lit one would lose half its features.
+func TestPlanetTiersAreOrdered(t *testing.T) {
+	for _, k := range []planetKind{earth, mars, mercury, jupiter, sun, moon} {
+		dark, lit := k.tiers()
+		if !(0.3 < dark && dark < lit && lit < 0.9) {
+			t.Errorf("%v tiers = (%v, %v), want 0.3 < dark < lit < 0.9", k, dark, lit)
+		}
 	}
 }
 
@@ -109,6 +111,39 @@ func BenchmarkGlobeShading(b *testing.B) {
 			if cell.inside {
 				_ = globeBrightness(earth, cell, 0.7)
 			}
+		}
+	}
+}
+
+// The user's defect was a globe with no readable features. Both tiers must
+// occur on every body, across faces: a body that loses one reads as a dot
+// mesh, not a planet.
+func TestPlanetsShowBothTiers(t *testing.T) {
+	const cols, rows = 58, 58
+	cells := globeGeometry(cols, rows)
+	for _, k := range []planetKind{earth, mars, mercury, jupiter, sun, moon} {
+		darkT, litT := k.tiers()
+		var dark, lit, total int
+		for _, angle := range []float64{0.7, 2.1, 4.0} {
+			for _, c := range cells {
+				if !c.inside {
+					continue
+				}
+				b := globeBrightness(k, c, angle) * (0.82 + 0.18*c.z)
+				if b < darkT {
+					dark++
+				}
+				if b >= litT {
+					lit++
+				}
+				total++
+			}
+		}
+		if dark*100 < total {
+			t.Errorf("%v: only %d dark samples of %d; the dark tier never shows", k, dark, total)
+		}
+		if lit*100 < total*5 {
+			t.Errorf("%v: only %d lit samples of %d; the lit tier is too rare", k, lit, total)
 		}
 	}
 }
