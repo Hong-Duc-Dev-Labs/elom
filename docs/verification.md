@@ -14,7 +14,7 @@ done.
 | 2 | Clean scans user caches in ≤ 20 s and every item shows path, size and reason; deletions land in the Recycle Bin and restore | 37-rule catalog: 61 candidates, 7.5 GB, 387 ms; per-item guard/whitelist/age reasons tested; trash path unit-tested with a fake trasher | manual (restore) |
 | 3 | The guard refuses system paths, junctions and UNC; cleanup refuses to run with an unreadable whitelist or log | `internal/core/safety` table tests (18 cases incl. junction created with `mklink /J`); `svc.Clean.Scan` error tests | verified |
 | 4 | Analyze opens `C:\Users\<user>` in ≤ 15 s, drills five levels, lists largest files, trashes a selection | index 261k entries / 40.5 GB in 3.5 s at the default cap (880k / 20.3 s at 1M); drill-down and largest files tested headlessly; layout tests | manual (visual + restore) |
-| 5 | Status updates at 1 Hz with 60-sample sparklines, lists processes, uses < 1 % CPU idle, tray panel opens from a shortcut | sampler 18–29 ms per read; idle CPU 0.18 % over 10 s; ring/rate/health tests; flyout and `Ctrl+Alt+E` created in the running app | manual (sparkline look) |
+| 5 | Status updates at 1 Hz with 60-sample sparklines, lists processes, uses < 1 % CPU idle; closing the window quits | sampler 18–29 ms per read; idle CPU 0.18 % over 10 s; ring/rate/health tests; no tray, flyout or global shortcut remains, and MyGo quits on the last closed window | manual (sparkline look, close smoke) |
 | 6 | Software lists apps within 5 % of Settings and shows leftovers unchecked | 366 registry apps + 131 packaged on this PC; parsing and leftover tests | manual (count comparison + real uninstall) |
 | 7 | Startup lists Run keys, StartupApproved and folders; a toggle survives a reboot and reverts | 17 entries with real flags (Discord disabled, Chrome enabled); blob encode/decode tests | manual (reboot) |
 | 8 | Optimize shows a dry-run and a skip reason without administrator rights; elevated work is a whitelisted op validated again | unelevated admin op returns `needs administrator rights` (probe); unknown op rejected with exit 1; strict job parsing tests | manual (accept/cancel the UAC prompt) |
@@ -28,6 +28,7 @@ go test ./... -count=1
 go test ./... -cover -count=1          # 59.5 % total at the time of writing
 go tool mygo build                     # build/windows-amd64/
 go tool mygo i18n check .              # en + vi catalogs agree
+$env:ELOM_GALLERY=1; go test ./internal/ui -run TestGallery -count=1  # visual pass
 ```
 
 Opt-in probes that read the real machine (skipped by default):
@@ -47,5 +48,8 @@ $env:ELOM_REAL_WINGET=1;  go test ./internal/core/winget -run TestRealWinget -v
 - The binary is unsigned; SmartScreen will warn until a certificate is added
   (`windows.certificate` in `mygo.json`).
 - The updater is not configured: it needs a signing key and a release feed.
-- `main.go` (window, tray, flyout wiring) is covered by a launch smoke test, not
-  by unit tests.
+- `main.go` (window wiring) is covered by a launch smoke test, not by unit
+  tests.
+- The dot globe's 20 Hz frame cost is measured only in the headless software
+  rasterizer (about 67 ms for a full 1180x760 clean frame); the GPU backend
+  cost in the running app is not measured.
