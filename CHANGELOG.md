@@ -35,6 +35,9 @@ at [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Relicensed from MIT to GPL-3.0, matching Mole and keeping the project
+  compatible with adapting Mole source code. `ATTRIBUTION.md` and the README
+  now state this; no Mole code is vendored yet.
 - UI review outcome recorded: core design language (wash, cards, type scale,
   contrast) is shared, while several screens still hand-roll components. The
   remaining polish items are keyboard/footer hints and consolidating the muted

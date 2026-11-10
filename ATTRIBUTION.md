@@ -31,11 +31,11 @@ executed.
 
 ### Licensing note
 
-Elom is released under the MIT license ([`LICENSE`](LICENSE)); Mole is
-GPL-3.0. An independent reimplementation does not import GPL-licensed code, so
-Elom can remain MIT. If you copy or adapt Mole source code into this project,
-the combined work must be distributed under GPL-3.0 and this file must be
-updated. Do not copy Mole assets or icons without checking their license.
+Elom is released under **GPL-3.0** ([`LICENSE`](LICENSE)), the same license as
+Mole. This keeps the project compatible with adapting Mole source code that is
+under GPL-3.0. The current tree still contains no Mole code or assets; when Mole
+code is adapted, keep its copyright notice and record the origin in this file.
+Do not copy assets or icons whose license differs from GPL-3.0.
 
 "Mole" is used descriptively to credit the prior art; the name and logo belong
 to the Mole authors.

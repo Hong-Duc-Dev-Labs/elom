@@ -85,6 +85,13 @@ states with the same components and wording as its neighbours.
   operation table in `internal/core/maint` and re-validated by the elevated
   process.
 
+## License
+
+Elom is GPL-3.0 ([`LICENSE`](LICENSE)), the same license as its prior art,
+Mole. By contributing you agree that your contribution is distributed under
+GPL-3.0. If you adapt Mole code, keep its copyright notice and update
+[`ATTRIBUTION.md`](ATTRIBUTION.md).
+
 ## Commits
 
 Use conventional commits (`fix(ui): …`, `feat(core): …`, `docs: …`,

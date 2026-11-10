@@ -92,3 +92,9 @@ locales/            message catalogs (en) and their generated accessors
 resources/          app icon
 internal/ui/fonts/  bundled Geist and Geist Mono (SIL OFL)
 ```
+
+## License
+
+Elom is released under the **GNU General Public License v3.0**
+([`LICENSE`](LICENSE)). Mole, the product and design reference, is also
+GPL-3.0; see [`ATTRIBUTION.md`](ATTRIBUTION.md) for what is and is not derived.
