@@ -16,8 +16,12 @@ import (
 )
 
 // TestGallery writes one PNG per screen for a visual pass. It is a
-// development aid, not a check; delete it before shipping.
+// development aid, not a check: it is skipped unless ELOM_GALLERY=1, so the
+// normal suite neither spends the render time nor writes into the repository.
 func TestGallery(t *testing.T) {
+	if os.Getenv("ELOM_GALLERY") == "" {
+		t.Skip("set ELOM_GALLERY=1 to render the gallery")
+	}
 	dir := filepath.Join("..", "..", ".gallery")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -51,6 +55,9 @@ func TestGallery(t *testing.T) {
 	a.clean.checked[`C:\Users\ada\AppData\Local\Temp`] = true
 	save("clean-review", a)
 
+	a.clean.reviewing = true
+	save("clean-list", a)
+
 	a = newTestApp(t)
 	a.Screen = "software"
 	a.software.loaded = true
@@ -63,6 +70,10 @@ func TestGallery(t *testing.T) {
 	a.software.picked = 0
 	a.software.updatesTried = true
 	save("software", a)
+
+	a = newTestApp(t)
+	a.Screen = "software"
+	save("software-empty", a)
 
 	a = newTestApp(t)
 	a.Screen = "software"
