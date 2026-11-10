@@ -4,6 +4,14 @@ A Windows utility that cleans, uninstalls, monitors and maps a PC, built with
 [MyGo](https://mygo.egoist.dev) native UI: Go, no cgo, no webview, one ~10 MB
 executable.
 
+Elom is an independent Windows implementation of the experience of
+**[Mole](https://github.com/tw93/Mole)**, the open-source cleaner by tw93 and
+contributors. Mole's screen structure and measured visual design are the
+reference for this UI; no Mole code or assets are included. The exact
+relationship and the GPL-3.0 note are in [`ATTRIBUTION.md`](ATTRIBUTION.md).
+
+![Elom's Status screen](docs/screenshots/status.png)
+
 Elom is being built in phases; the plan and its acceptance criteria live in
 [`plans/261110-0711-elom-windows-cleaner/plan.md`](plans/261110-0711-elom-windows-cleaner/plan.md).
 The spike report from phase 1 is in
@@ -35,6 +43,21 @@ The spike report from phase 1 is in
   cleanup refuses to run.
 - **No elevation in the UI.** Privileged maintenance runs in a second,
   short-lived invocation that re-validates a closed list of operations.
+
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — layers, screens, design
+  system, state model and where a change belongs.
+- [`ATTRIBUTION.md`](ATTRIBUTION.md) — Mole as prior art, what is and is not
+  derived, licensing.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — build, tests, localization and design
+  conventions.
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed and when.
+- [`SECURITY.md`](SECURITY.md) — protected locations, deletion and the privilege
+  boundary.
+- [`docs/verification.md`](docs/verification.md) — acceptance criteria and how
+  each one was checked.
+- [`docs/screenshots/`](docs/screenshots/) — headless renders of every screen.
 
 ## Build
 
