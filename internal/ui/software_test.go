@@ -191,6 +191,30 @@ func TestIconPath(t *testing.T) {
 	}
 }
 
+func TestSoftwareUninstallFailureIsVisible(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.software.loaded = true
+	a.software.uninstallErr = "exit status 1"
+	a.software.list = []apps.App{{Name: "Broken App"}}
+	tt := NewTester(a.View, 1180, 760)
+	if !tt.HasText("The uninstaller failed: exit status 1") {
+		t.Errorf("uninstall failure not shown: %q", tt.Texts())
+	}
+}
+
+func TestSoftwareExplainsMissingUninstaller(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.software.loaded = true
+	a.software.list = []apps.App{{Name: "Store App", Kind: apps.KindAppx}}
+	a.software.picked = 0
+	tt := NewTester(a.View, 1180, 760)
+	if !tt.HasText("This app registered no uninstaller") {
+		t.Errorf("missing-uninstaller action hides the reason: %q", tt.Texts())
+	}
+}
+
 func TestSoftwareDetailRendersSelectedApp(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "software"

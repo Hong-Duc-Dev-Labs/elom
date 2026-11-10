@@ -18,11 +18,39 @@ type startupState struct {
 	loading bool
 	loaded  bool
 	err     string
-	table   ListState
-	picked  int
+	// toggleErr is a failed change, kept apart from the read error so the
+	// message names the entry and the reason instead of the list.
+	toggleErr string
+	// pendingName is the entry whose elevated write is in flight.
+	pendingName string
+	table       ListState
+	picked      int
 }
 
 func newStartupState() startupState { return startupState{picked: -1} }
+
+// startupSourceLabel names where an entry lives. The core reports stable
+// identifiers, not display text, so the UI localizes them here.
+func startupSourceLabel(source string) string {
+	switch source {
+	case "HKCU Run":
+		return locales.StartupSourceHKCURun()
+	case "HKCU RunOnce":
+		return locales.StartupSourceHKCURunOnce()
+	case "HKLM Run":
+		return locales.StartupSourceHKLMRun()
+	case "HKLM Run (32-bit)":
+		return locales.StartupSourceHKLMRun32()
+	case "HKLM RunOnce":
+		return locales.StartupSourceHKLMRunOnce()
+	case "Startup folder (user)":
+		return locales.StartupSourceUserFolder()
+	case "Startup folder (all users)":
+		return locales.StartupSourceAllUsersFolder()
+	default:
+		return source
+	}
+}
 
 func (a *App) startupPage(c *Context, pal palette) {
 	st := &a.startup
@@ -60,6 +88,11 @@ func (a *App) startupPage(c *Context, pal palette) {
 		})
 		return
 	}
+	if st.toggleErr != "" {
+		cardWith(c, 4, func() {
+			Text(c, st.toggleErr).FontSize(sizeMeta).TextColor(appTheme.Danger)
+		})
+	}
 
 	st.table.Selected = &st.picked
 	st.table.Label = func(i int) string { return st.entries[i].Name }
@@ -78,24 +111,33 @@ func (a *App) startupPage(c *Context, pal palette) {
 							TextColor(fgMuted()).NoWrap()
 					})
 					Column(c).Gap(2).AlignItems(End).Children(func() {
-						Text(c, entry.Source).FontSize(sizeCaption).TextColor(fgSecondary()).NoWrap()
+						Row(c).Gap(6).AlignItems(Center).Children(func() {
+							Text(c, startupSourceLabel(entry.Source)).FontSize(sizeCaption).
+								TextColor(fgSecondary()).NoWrap()
+							if entry.Scope == "machine" {
+								pillTag(c, locales.OptimizeAdmin(), appTheme.Warning)
+							}
+						})
 						state := locales.StartupEnabled()
 						if !entry.Enabled {
 							state = locales.StartupDisabled()
 						}
 						if !entry.Writable {
-							state = entry.Note
+							state = locales.StartupShortcutNote()
 						}
 						Text(c, trim(state, 60)).FontSize(sizeCaption).TextColor(fgMuted()).NoWrap()
 					})
-					if entry.Writable {
+					switch {
+					case !entry.Writable:
+						Text(c, "—").Width(44).TextAlign(Center).TextColor(fgMuted())
+					case st.pendingName == entry.Name:
+						Spinner(c)
+					default:
 						on := entry.Enabled
 						sw := toggle(c, &on, entry.Name)
 						if sw.Changed() {
 							a.toggleStartup(i, on)
 						}
-					} else {
-						Text(c, "—").Width(34).TextColor(fgMuted())
 					}
 				})
 				switch {
@@ -145,11 +187,11 @@ func (a *App) toggleStartup(index int, on bool) {
 		return
 	}
 	if err := a.Startup.SetEnabled(entry, on); err != nil {
-		a.startup.err = err.Error()
+		a.startup.toggleErr = locales.StartupToggleFailed(entry.Name, err.Error())
 		return
 	}
 	a.startup.entries[index].Enabled = on
-	a.startup.err = ""
+	a.startup.toggleErr = ""
 }
 
 // startupOp is the job operation that changes a machine-wide entry.
@@ -166,19 +208,25 @@ func startupOp(entry startup.Entry, on bool) maint.Op {
 
 // toggleStartupElevated asks the elevated process to write a machine-wide flag.
 func (a *App) toggleStartupElevated(entry startup.Entry, on bool) {
+	if a.startup.pendingName != "" {
+		return
+	}
 	op := startupOp(entry, on)
+	a.startup.pendingName = entry.Name
+	a.startup.toggleErr = ""
 	go func() {
 		results, err := a.Elevate(context.Background(), []maint.Op{op})
 		a.update(func() {
+			a.startup.pendingName = ""
 			switch {
 			case errors.Is(err, svc.ErrCancelled):
-				a.startup.err = locales.OptimizeCancelled()
+				a.startup.toggleErr = locales.StartupToggleFailed(entry.Name, locales.OptimizeCancelled())
 			case err != nil:
-				a.startup.err = err.Error()
+				a.startup.toggleErr = locales.StartupToggleFailed(entry.Name, err.Error())
 			case len(results) > 0 && !results[0].OK:
-				a.startup.err = results[0].Err
+				a.startup.toggleErr = locales.StartupToggleFailed(entry.Name, results[0].Err)
 			default:
-				a.startup.err = ""
+				a.startup.toggleErr = ""
 				if i := a.startupIndex(entry.Name); i >= 0 {
 					a.startup.entries[i].Enabled = on
 				}

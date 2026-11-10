@@ -165,6 +165,12 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 			}
 		})
 	}
+	if st.uninstallErr != "" {
+		cardWith(c, 4, func() {
+			Text(c, locales.SoftwareUninstallFailed(st.uninstallErr)).
+				FontSize(sizeMeta).TextColor(appTheme.Danger)
+		})
+	}
 	if len(st.leftovers) > 0 {
 		a.leftoversSection(c, st.leftovers, pal)
 	}

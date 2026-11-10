@@ -18,12 +18,15 @@ import (
 type optimizeState struct {
 	running string
 	results map[string]maint.Result
-	err     string
 	note    string
+	// cancel stops the routine's pending tasks; nil when nothing is running.
+	cancel context.CancelFunc
+	// run executes one operation; tests replace it with a fake.
+	run func(context.Context, maint.Op) maint.Result
 }
 
 func newOptimizeState() optimizeState {
-	return optimizeState{results: map[string]maint.Result{}}
+	return optimizeState{results: map[string]maint.Result{}, run: maint.Run}
 }
 
 // userTasks are the maintenance tasks the screen offers. The machine-wide
@@ -66,6 +69,9 @@ func (a *App) optimizePage(c *Context, pal palette) {
 				Row(c).Gap(10).AlignItems(Center).Children(func() {
 					Spinner(c)
 					Text(c, st.note).FontSize(12.5).TextColor(appTheme.TextMuted)
+					if st.cancel != nil && ghostPill(c, locales.CleanCancel()).Clicked() {
+						st.cancel()
+					}
 				})
 			} else if primaryPill(c, locales.OptimizeAll()).Width(220).Height(44).Clicked() {
 				a.runRoutine()
@@ -113,6 +119,8 @@ func (a *App) optimizePage(c *Context, pal palette) {
 					if ghostPill(c, locales.OptimizeRun()).Clicked() {
 						a.runTask(task)
 					}
+				default:
+					ghostPill(c, locales.OptimizeRun()).Disabled(true)
 				}
 			})
 			if i < len(tasks)-1 {
@@ -140,24 +148,36 @@ func (a *App) runRoutine() {
 			plain = append(plain, task)
 		}
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	st.running = "routine"
+	st.cancel = cancel
 	st.note = locales.OptimizeRunning(locales.OptimizeAll())
 	go func() {
+		defer cancel()
 		results := map[string]maint.Result{}
 		for _, task := range plain {
-			result := maint.Run(context.Background(), maint.Op{Name: task.Op})
+			if ctx.Err() != nil {
+				break
+			}
+			// Mark the task itself as running: the row's spinner looks for its
+			// own op, and the hero line names what is running now.
+			a.update(func() {
+				st.running = task.Op
+				st.note = locales.OptimizeRunning(task.Title)
+			})
+			result := st.run(ctx, maint.Op{Name: task.Op})
 			a.logMaintenance(task, result)
 			results[task.Op] = result
 		}
-		cancelled := false
-		if len(admin) > 0 {
+		cancelled := ctx.Err() != nil
+		if !cancelled && len(admin) > 0 {
 			ops := make([]maint.Op, len(admin))
 			for i, task := range admin {
 				ops[i] = maint.Op{Name: task.Op}
 			}
-			got, err := a.Elevate(context.Background(), ops)
+			got, err := a.Elevate(ctx, ops)
 			switch {
-			case errors.Is(err, svc.ErrCancelled):
+			case errors.Is(err, svc.ErrCancelled), errors.Is(err, context.Canceled):
 				cancelled = true
 			case err != nil:
 				for _, task := range admin {
@@ -185,6 +205,7 @@ func (a *App) runRoutine() {
 				}
 			}
 			st.running = ""
+			st.cancel = nil
 			st.note = locales.OptimizeSummaryLine(ok, failed)
 			if cancelled {
 				st.note += " · " + locales.OptimizeCancelled()
@@ -199,13 +220,14 @@ func (a *App) runTask(task maint.Task) {
 	go func() {
 		if task.Danger {
 			res, err := mygo.Dialog.Message(mygo.MessageOptions{
-				Parent:        a.Win,
-				Type:          mygo.MessageWarning,
-				Message:       locales.OptimizeConfirmTitle(task.Title),
-				Detail:        task.Detail,
-				Buttons:       []string{locales.CleanCancel(), locales.OptimizeRun()},
-				DefaultButton: 1,
-				CancelButton:  0,
+				Parent:             a.Win,
+				Type:               mygo.MessageWarning,
+				Message:            locales.OptimizeConfirmTitle(task.Title),
+				Detail:             task.Detail,
+				Buttons:            []string{locales.CleanCancel(), locales.OptimizeRun()},
+				DefaultButton:      1,
+				CancelButton:       0,
+				DestructiveButtons: []int{1},
 			})
 			if err != nil || res.Button != 1 {
 				return
@@ -220,7 +242,7 @@ func (a *App) runTask(task maint.Task) {
 		if task.Admin {
 			results, err := a.Elevate(context.Background(), []maint.Op{op})
 			switch {
-			case err == svc.ErrCancelled:
+			case errors.Is(err, svc.ErrCancelled):
 				a.Win.Update(func() {
 					st.running = ""
 					st.note = locales.OptimizeCancelled()
@@ -232,7 +254,7 @@ func (a *App) runTask(task maint.Task) {
 				result = results[0]
 			}
 		} else {
-			result = maint.Run(context.Background(), op)
+			result = st.run(context.Background(), op)
 		}
 		a.logMaintenance(task, result)
 		a.Win.Update(func() {

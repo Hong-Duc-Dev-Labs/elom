@@ -195,11 +195,10 @@ func tileHead(c *Context, icon *SVG, accent Color, label, chip string) {
 	})
 }
 
-// chipTag is the small boxed fact in a tile's corner, as "2.64 GHz".
+// chipTag is the small boxed fact in a tile's corner, as "2.64 GHz". It is
+// the same chip as a task's tags, so one concept keeps one look.
 func chipTag(c *Context, label string) {
-	Box(c).Padding(2, 7).Radius(5).Border(1, RGBA(255, 255, 255, 0.14)).Children(func() {
-		Text(c, label).Font(fontMono).FontSize(sizeFootnote).TextColor(fgSecondary()).NoWrap()
-	})
+	pillTag(c, label, fgSecondary())
 }
 
 // healthTile is the first tile: the score and its word, the machine's facts
@@ -209,8 +208,7 @@ func (a *App) healthTile(c *Context, pal palette, snap metrics.Snapshot) {
 		Column(c).FillWidth().Gap(8).Children(func() {
 			Row(c).FillWidth().Gap(5).AlignItems(Center).Children(func() {
 				Icon(c, iconHeart).FontSize(12).TextColor(appTheme.Success)
-				Text(c, strings.ToUpper(locales.StatusHealth())).FontSize(sizeFootnote).FontWeight(700).
-					LetterSpacing(0.8).TextColor(fgSecondary()).NoWrap()
+				capsLabel(c, locales.StatusHealth(), fgSecondary())
 				Spacer(c)
 				for _, fact := range []string{snap.System.CPUModel, totalRAM(snap.MemTotal), snap.System.OS} {
 					if fact != "" {
@@ -221,7 +219,7 @@ func (a *App) healthTile(c *Context, pal palette, snap metrics.Snapshot) {
 			Row(c).FillWidth().AlignItems(Center).Children(func() {
 				Column(c).Grow(1).Gap(6).Children(func() {
 					Row(c).Gap(8).AlignItems(End).Children(func() {
-						Text(c, fmt.Sprint(snap.Health)).Font(fontMono).FontSize(26).FontWeight(500).TextColor(fgPrimary())
+						bigNumber(c, fmt.Sprint(snap.Health), "")
 						Text(c, healthWord(snap.Health)).FontSize(13).TextColor(fgSecondary()).Margin(0, 0, 5, 0)
 					})
 					line := locales.StatusNormal()
@@ -307,25 +305,30 @@ func formatUptime(d time.Duration) string {
 
 func (a *App) processTable(c *Context, pal palette) {
 	rows := a.status.Processes
-	if len(rows) == 0 {
-		return
-	}
 	a.procTable.Selected = &a.procPicked
 	peak := 1.0
 	for _, proc := range rows {
 		peak = math.Max(peak, proc.CPU)
 	}
-	card(c).Padding(10, 14).Children(func() {
+	card(c).Children(func() {
 		Column(c).FillWidth().Gap(6).Children(func() {
-			Row(c).FillWidth().AlignItems(Center).Gap(8).Padding(4, 2, 0, 2).Children(func() {
-				capsLabel(c, locales.StatusProcesses(), fgMuted())
-				Spacer(c)
-			})
+			cardHead(c, pal, locales.StatusProcesses(), "")
+			if a.statusKillErr != "" {
+				Text(c, a.statusKillErr).FontSize(sizeMeta).TextColor(appTheme.Danger)
+			}
+			// A sampler that has not answered yet, or a machine that reports
+			// nothing, still leaves the card in place with a reason; the old
+			// view dropped the whole section and looked broken.
+			if len(rows) == 0 {
+				hintText(c, locales.StatusNoProcesses())
+				return
+			}
+			rule(c)
 			Table(c, &a.procTable, []TableColumn{
-				{Title: "NAME", Width: 0, Fixed: true},
-				{Title: "CPU", ID: "cpu", Width: 150, Align: End, Fixed: true},
-				{Title: "MEM", Width: 96, Align: End, Fixed: true},
-				{Title: "PID", Width: 72, Align: End, Fixed: true},
+				{Title: locales.StatusColName(), Width: 0, Fixed: true},
+				{Title: locales.StatusColCpu(), ID: "cpu", Width: 150, Align: End, Fixed: true},
+				{Title: locales.StatusColMem(), Width: 96, Align: End, Fixed: true},
+				{Title: locales.StatusColPid(), Width: 72, Align: End, Fixed: true},
 				{Title: "", ID: "end", Width: 34, Fixed: true},
 			}, len(rows), func(row, col int) {
 				proc := rows[row]
@@ -386,6 +389,12 @@ func (a *App) endTask(proc metrics.Process) {
 		if err != nil || res.Button != 1 {
 			return
 		}
-		_ = metrics.KillProcess(proc.PID)
+		if err := metrics.KillProcess(proc.PID); err != nil {
+			a.update(func() {
+				a.statusKillErr = locales.StatusKillFailed(proc.Name, err.Error())
+			})
+			return
+		}
+		a.update(func() { a.statusKillErr = "" })
 	}()
 }

@@ -473,6 +473,18 @@ func (msgs Messages) CleanConfirmDetail(size string) string {
 	return Catalog.Format(msgs.locale, "cleanConfirmDetail", map[string]any{"size": size})
 }
 
+// CleanConfirmPermanentDetail says "{size} will be deleted permanently. This cannot be undone."
+// in the language the app shows.
+func CleanConfirmPermanentDetail(size string) string {
+	return In(i18n.Locale()).CleanConfirmPermanentDetail(size)
+}
+
+// CleanConfirmPermanentDetail says "{size} will be deleted permanently. This cannot be undone."
+// in the language of msgs.
+func (msgs Messages) CleanConfirmPermanentDetail(size string) string {
+	return Catalog.Format(msgs.locale, "cleanConfirmPermanentDetail", map[string]any{"size": size})
+}
+
 // CleanBlocked says "Kept: {reason}"
 // in the language the app shows.
 func CleanBlocked(reason string) string { return In(i18n.Locale()).CleanBlocked(reason) }
@@ -725,6 +737,68 @@ func (msgs Messages) StatusProcesses() string {
 	return Catalog.Format(msgs.locale, "statusProcesses", nil)
 }
 
+// StatusNoProcesses says "No processes are listed right now."
+// in the language the app shows.
+func StatusNoProcesses() string { return In(i18n.Locale()).StatusNoProcesses() }
+
+// StatusNoProcesses says "No processes are listed right now."
+// in the language of msgs.
+func (msgs Messages) StatusNoProcesses() string {
+	return Catalog.Format(msgs.locale, "statusNoProcesses", nil)
+}
+
+// StatusKillFailed says "Could not end {name}: {reason}"
+// in the language the app shows.
+func StatusKillFailed(name string, reason string) string {
+	return In(i18n.Locale()).StatusKillFailed(name, reason)
+}
+
+// StatusKillFailed says "Could not end {name}: {reason}"
+// in the language of msgs.
+func (msgs Messages) StatusKillFailed(name string, reason string) string {
+	return Catalog.Format(msgs.locale, "statusKillFailed", map[string]any{"name": name, "reason": reason})
+}
+
+// StatusColName says "NAME"
+// in the language the app shows.
+func StatusColName() string { return In(i18n.Locale()).StatusColName() }
+
+// StatusColName says "NAME"
+// in the language of msgs.
+func (msgs Messages) StatusColName() string {
+	return Catalog.Format(msgs.locale, "statusColName", nil)
+}
+
+// StatusColCpu says "CPU"
+// in the language the app shows.
+func StatusColCpu() string { return In(i18n.Locale()).StatusColCpu() }
+
+// StatusColCpu says "CPU"
+// in the language of msgs.
+func (msgs Messages) StatusColCpu() string {
+	return Catalog.Format(msgs.locale, "statusColCpu", nil)
+}
+
+// StatusColMem says "MEM"
+// in the language the app shows.
+func StatusColMem() string { return In(i18n.Locale()).StatusColMem() }
+
+// StatusColMem says "MEM"
+// in the language of msgs.
+func (msgs Messages) StatusColMem() string {
+	return Catalog.Format(msgs.locale, "statusColMem", nil)
+}
+
+// StatusColPid says "PID"
+// in the language the app shows.
+func StatusColPid() string { return In(i18n.Locale()).StatusColPid() }
+
+// StatusColPid says "PID"
+// in the language of msgs.
+func (msgs Messages) StatusColPid() string {
+	return Catalog.Format(msgs.locale, "statusColPid", nil)
+}
+
 // StatusEndTask says "End task"
 // in the language the app shows.
 func StatusEndTask() string { return In(i18n.Locale()).StatusEndTask() }
@@ -873,6 +947,28 @@ func SoftwareUninstalling() string { return In(i18n.Locale()).SoftwareUninstalli
 // in the language of msgs.
 func (msgs Messages) SoftwareUninstalling() string {
 	return Catalog.Format(msgs.locale, "softwareUninstalling", nil)
+}
+
+// SoftwareUninstallFailed says "The uninstaller failed: {reason}"
+// in the language the app shows.
+func SoftwareUninstallFailed(reason string) string {
+	return In(i18n.Locale()).SoftwareUninstallFailed(reason)
+}
+
+// SoftwareUninstallFailed says "The uninstaller failed: {reason}"
+// in the language of msgs.
+func (msgs Messages) SoftwareUninstallFailed(reason string) string {
+	return Catalog.Format(msgs.locale, "softwareUninstallFailed", map[string]any{"reason": reason})
+}
+
+// SoftwareNoUninstaller says "This app registered no uninstaller. Remove it from Windows Settings."
+// in the language the app shows.
+func SoftwareNoUninstaller() string { return In(i18n.Locale()).SoftwareNoUninstaller() }
+
+// SoftwareNoUninstaller says "This app registered no uninstaller. Remove it from Windows Settings."
+// in the language of msgs.
+func (msgs Messages) SoftwareNoUninstaller() string {
+	return Catalog.Format(msgs.locale, "softwareNoUninstaller", nil)
 }
 
 // SoftwareConfirmTitle says "Uninstall {name}?"
@@ -1025,6 +1121,86 @@ func StartupDisabled() string { return In(i18n.Locale()).StartupDisabled() }
 // in the language of msgs.
 func (msgs Messages) StartupDisabled() string {
 	return Catalog.Format(msgs.locale, "startupDisabled", nil)
+}
+
+// StartupShortcutNote says "A shortcut in the Startup folder: enable or disable it there."
+// in the language the app shows.
+func StartupShortcutNote() string { return In(i18n.Locale()).StartupShortcutNote() }
+
+// StartupShortcutNote says "A shortcut in the Startup folder: enable or disable it there."
+// in the language of msgs.
+func (msgs Messages) StartupShortcutNote() string {
+	return Catalog.Format(msgs.locale, "startupShortcutNote", nil)
+}
+
+// StartupSourceHKCURun says "HKCU Run"
+// in the language the app shows.
+func StartupSourceHKCURun() string { return In(i18n.Locale()).StartupSourceHKCURun() }
+
+// StartupSourceHKCURun says "HKCU Run"
+// in the language of msgs.
+func (msgs Messages) StartupSourceHKCURun() string {
+	return Catalog.Format(msgs.locale, "startupSourceHKCURun", nil)
+}
+
+// StartupSourceHKCURunOnce says "HKCU RunOnce"
+// in the language the app shows.
+func StartupSourceHKCURunOnce() string { return In(i18n.Locale()).StartupSourceHKCURunOnce() }
+
+// StartupSourceHKCURunOnce says "HKCU RunOnce"
+// in the language of msgs.
+func (msgs Messages) StartupSourceHKCURunOnce() string {
+	return Catalog.Format(msgs.locale, "startupSourceHKCURunOnce", nil)
+}
+
+// StartupSourceHKLMRun says "HKLM Run"
+// in the language the app shows.
+func StartupSourceHKLMRun() string { return In(i18n.Locale()).StartupSourceHKLMRun() }
+
+// StartupSourceHKLMRun says "HKLM Run"
+// in the language of msgs.
+func (msgs Messages) StartupSourceHKLMRun() string {
+	return Catalog.Format(msgs.locale, "startupSourceHKLMRun", nil)
+}
+
+// StartupSourceHKLMRun32 says "HKLM Run (32-bit)"
+// in the language the app shows.
+func StartupSourceHKLMRun32() string { return In(i18n.Locale()).StartupSourceHKLMRun32() }
+
+// StartupSourceHKLMRun32 says "HKLM Run (32-bit)"
+// in the language of msgs.
+func (msgs Messages) StartupSourceHKLMRun32() string {
+	return Catalog.Format(msgs.locale, "startupSourceHKLMRun32", nil)
+}
+
+// StartupSourceHKLMRunOnce says "HKLM RunOnce"
+// in the language the app shows.
+func StartupSourceHKLMRunOnce() string { return In(i18n.Locale()).StartupSourceHKLMRunOnce() }
+
+// StartupSourceHKLMRunOnce says "HKLM RunOnce"
+// in the language of msgs.
+func (msgs Messages) StartupSourceHKLMRunOnce() string {
+	return Catalog.Format(msgs.locale, "startupSourceHKLMRunOnce", nil)
+}
+
+// StartupSourceUserFolder says "Startup folder (user)"
+// in the language the app shows.
+func StartupSourceUserFolder() string { return In(i18n.Locale()).StartupSourceUserFolder() }
+
+// StartupSourceUserFolder says "Startup folder (user)"
+// in the language of msgs.
+func (msgs Messages) StartupSourceUserFolder() string {
+	return Catalog.Format(msgs.locale, "startupSourceUserFolder", nil)
+}
+
+// StartupSourceAllUsersFolder says "Startup folder (all users)"
+// in the language the app shows.
+func StartupSourceAllUsersFolder() string { return In(i18n.Locale()).StartupSourceAllUsersFolder() }
+
+// StartupSourceAllUsersFolder says "Startup folder (all users)"
+// in the language of msgs.
+func (msgs Messages) StartupSourceAllUsersFolder() string {
+	return Catalog.Format(msgs.locale, "startupSourceAllUsersFolder", nil)
 }
 
 // SoftwareUpdates says "Updates"

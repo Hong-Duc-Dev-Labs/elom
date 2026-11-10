@@ -24,11 +24,12 @@ type softwareState struct {
 	picked int
 	query  string
 
-	running   bool
-	log       []string
-	leftovers []apps.Leftover
-	chosen    map[string]bool
-	active    apps.App
+	running      bool
+	uninstallErr string
+	log          []string
+	leftovers    []apps.Leftover
+	chosen       map[string]bool
+	active       apps.App
 
 	updates      []winget.Upgrade
 	updatesTried bool
@@ -149,7 +150,10 @@ func (a *App) updatesSection(c *Context, pal palette) {
 					Text(c, update.ID).FontSize(11).TextColor(quietText()).NoWrap()
 				})
 				Text(c, update.Current+" → "+update.Available).FontSize(11).TextColor(softText()).NoWrap()
-				if st.applying == "" && ghostPill(c, locales.SoftwareUpdate()).Clicked() {
+				updateButton := ghostPill(c, locales.SoftwareUpdate())
+				if st.applying != "" {
+					updateButton.Disabled(true)
+				} else if updateButton.Clicked() {
 					a.applyUpdate(update)
 				}
 			})
@@ -240,12 +244,17 @@ func (a *App) softwareDetail(c *Context, app apps.App, pal palette) {
 					}
 				}
 				Spacer(c)
-				if app.UninstallCommand() != "" && !a.software.running {
-					if primaryPill(c, locales.SoftwareUninstall()).Clicked() {
+				if app.UninstallCommand() != "" {
+					if a.software.running {
+						primaryPill(c, locales.SoftwareUninstall()).Disabled(true)
+					} else if primaryPill(c, locales.SoftwareUninstall()).Clicked() {
 						a.uninstallApp(app)
 					}
 				}
 			})
+			if app.UninstallCommand() == "" {
+				hintText(c, locales.SoftwareNoUninstaller())
+			}
 		})
 	})
 }
@@ -317,6 +326,7 @@ func (a *App) uninstallApp(app apps.App) {
 		}
 		a.Win.Update(func() {
 			a.software.running = true
+			a.software.uninstallErr = ""
 			a.software.log = nil
 			a.software.leftovers = nil
 			a.software.chosen = map[string]bool{}
@@ -324,7 +334,7 @@ func (a *App) uninstallApp(app apps.App) {
 		})
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
-		_ = a.Software.Uninstall(ctx, app, func(line string) {
+		runErr := a.Software.Uninstall(ctx, app, func(line string) {
 			a.Win.Update(func() {
 				a.software.log = append(a.software.log, line)
 				if len(a.software.log) > 200 {
@@ -332,9 +342,21 @@ func (a *App) uninstallApp(app apps.App) {
 				}
 			})
 		})
-		leftovers := a.Software.Leftovers(app)
+		// Only a finished uninstaller can be credited with leftovers: after a
+		// failure the app may still be installed, and offering its files for
+		// deletion would remove a working program.
+		var leftovers []apps.Leftover
+		if runErr == nil {
+			leftovers = a.Software.Leftovers(app)
+		}
 		a.Win.Update(func() {
 			a.software.running = false
+			if runErr != nil {
+				a.software.uninstallErr = runErr.Error()
+				a.software.leftovers = nil
+				a.software.chosen = map[string]bool{}
+				return
+			}
 			a.software.leftovers = leftovers
 			for _, l := range leftovers {
 				if l.Confidence == "high" {

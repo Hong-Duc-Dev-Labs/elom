@@ -55,6 +55,29 @@ func TestStatusPageRenders(t *testing.T) {
 	}
 }
 
+func TestStatusProcessTableExplainsEmptyList(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "status"
+	snap := sampleSnapshot()
+	snap.Processes = nil
+	a.status = snap
+	tt := NewTester(a.View, 1180, 760)
+	if !tt.HasText("No processes are listed right now.") {
+		t.Errorf("empty process table has no reason: %q", tt.Texts())
+	}
+}
+
+func TestStatusShowsKillFailure(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "status"
+	a.status = sampleSnapshot()
+	a.statusKillErr = "Could not end notepad.exe: access is denied."
+	tt := NewTester(a.View, 1180, 760)
+	if !tt.HasText("Could not end notepad.exe: access is denied.") {
+		t.Errorf("kill failure not shown: %q", tt.Texts())
+	}
+}
+
 func TestStatusPageWaitsForFirstSample(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "status"

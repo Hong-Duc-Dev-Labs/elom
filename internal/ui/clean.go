@@ -270,19 +270,30 @@ func (a *App) startScan() {
 	}()
 }
 
+// cleanConfirmFor is the confirmation for the mode the deletion will use: the
+// Recycle Bin promises a restore, so a permanent delete must not reuse that
+// wording or its button.
+func cleanConfirmFor(permanent bool, size string) (detail, confirm string) {
+	if permanent {
+		return locales.CleanConfirmPermanentDetail(size), locales.CleanDeletePermanent()
+	}
+	return locales.CleanConfirmDetail(size), locales.CleanDelete()
+}
+
 func (a *App) deleteSelected() {
 	chosen, bytes := a.clean.selectionCandidates()
 	if len(chosen) == 0 || a.clean.busy || a.Win == nil {
 		return
 	}
 	permanent := a.Settings.PermanentDelete
+	detail, confirm := cleanConfirmFor(permanent, humanBytes(bytes))
 	go func() {
 		res, err := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:             a.Win,
 			Type:               mygo.MessageWarning,
 			Message:            locales.CleanConfirmTitle(len(chosen)),
-			Detail:             locales.CleanConfirmDetail(humanBytes(bytes)),
-			Buttons:            []string{locales.CleanCancel(), locales.CleanDelete()},
+			Detail:             detail,
+			Buttons:            []string{locales.CleanCancel(), confirm},
 			DefaultButton:      1,
 			CancelButton:       0,
 			DestructiveButtons: []int{1},

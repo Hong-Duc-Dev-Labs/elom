@@ -62,6 +62,20 @@ func TestCleanPageShowsDisabledReason(t *testing.T) {
 	}
 }
 
+func TestCleanConfirmMatchesDeleteMode(t *testing.T) {
+	detail, confirm := cleanConfirmFor(false, "2.0 MB")
+	if confirm != "Move to Recycle Bin" || !strings.Contains(detail, "Recycle Bin") {
+		t.Errorf("recycle confirm = %q / %q", detail, confirm)
+	}
+	detail, confirm = cleanConfirmFor(true, "2.0 MB")
+	if confirm != "Delete permanently" {
+		t.Errorf("permanent confirm button = %q", confirm)
+	}
+	if strings.Contains(detail, "Recycle Bin") || !strings.Contains(detail, "cannot be undone") {
+		t.Errorf("permanent confirm detail still promises restore: %q", detail)
+	}
+}
+
 func TestHumanBytes(t *testing.T) {
 	cases := map[int64]string{
 		0:             "0 B",

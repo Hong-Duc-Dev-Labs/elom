@@ -57,6 +57,7 @@ type App struct {
 	release       func()
 	procTable     ListState
 	procPicked    int
+	statusKillErr string
 
 	// Elevate runs maintenance with administrator rights; tests replace it.
 	Elevate func(context.Context, []maint.Op) ([]maint.Result, error)
