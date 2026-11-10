@@ -18,9 +18,9 @@ import (
 	"elom/internal/core/oplog"
 	"elom/internal/core/safety"
 	"elom/internal/core/settings"
-	"github.com/egoist/mygo/i18n"
 	"elom/internal/svc"
 	"elom/locales"
+	"github.com/egoist/mygo/i18n"
 )
 
 // App is the state the window draws and the services it talks to. The view
@@ -37,9 +37,9 @@ type App struct {
 	// Win is the main window, once it exists.
 	Win *mygo.Window
 
-	Clean       *svc.Clean
-	clean       cleanState
-	analyze     analyzeState
+	Clean   *svc.Clean
+	clean   cleanState
+	analyze analyzeState
 
 	Software *svc.Software
 	software softwareState
@@ -64,9 +64,9 @@ type App struct {
 	language string
 	// washFrom is the screen the wash is fading from, and washing says the
 	// 320 ms fade is running.
-	washFrom string
-	washing  bool
-	washAt   time.Time
+	washFrom      string
+	washing       bool
+	washAt        time.Time
 	cleanScreen   *mygo.Window
 	cleanOpenedAt time.Time
 	whitelist     []string
@@ -81,20 +81,20 @@ type App struct {
 func New(dataDir string, store *settings.Store, log *oplog.Log) *App {
 	registerFonts()
 	a := &App{
-		Screen:      firstScreen(),
-		Guard:       safety.New(),
-		Store:       store,
-		Log:         log,
-		DataDir:     dataDir,
-		Clean:       svc.NewClean(safety.New(), store, log, nil, shellTrasher{}),
-		clean:       newCleanState(),
-		analyze:     newAnalyzeState(),
-		Elevate:     svc.RunElevated,
-		Status:      svc.NewStatus(),
-		procPicked:  -1,
-		software:    newSoftwareState(),
-		optimize:    newOptimizeState(),
-		startup:     newStartupState(),
+		Screen:     firstScreen(),
+		Guard:      safety.New(),
+		Store:      store,
+		Log:        log,
+		DataDir:    dataDir,
+		Clean:      svc.NewClean(safety.New(), store, log, nil, shellTrasher{}),
+		clean:      newCleanState(),
+		analyze:    newAnalyzeState(),
+		Elevate:    svc.RunElevated,
+		Status:     svc.NewStatus(),
+		procPicked: -1,
+		software:   newSoftwareState(),
+		optimize:   newOptimizeState(),
+		startup:    newStartupState(),
 	}
 	home, local, roaming, programData := svc.RootsFromUser()
 	a.Software = &svc.Software{
@@ -336,7 +336,11 @@ func (a *App) heading(c *Context, r Screen, pal palette) {
 }
 
 // settingsPage is one card of rows, Mole's settings shape: a label and its
-// hint on the left, the control on the right, a hairline between rows.
+// hint on the left, the control on the right, a hairline between rows. The
+// card spans the screen's content width and splits into two columns, the
+// settings you change on the left and the lists Elom keeps on the right, so the
+// last section, the recent operations, is on screen at the default window
+// rather than below the fold.
 func (a *App) settingsPage(c *Context, pal palette) {
 	section := func(title string) {
 		Text(c, strings.ToUpper(title)).FontSize(sizeFootnote).FontWeight(700).
@@ -359,157 +363,166 @@ func (a *App) settingsPage(c *Context, pal palette) {
 		rule(c)
 	}
 
-	card(c).MaxWidth(860).Children(func() {
-		Column(c).FillWidth().Children(func() {
-			section(locales.Preferences())
+	card(c).MaxWidth(1100).Children(func() {
+		Row(c).FillWidth().AlignItems(Start).Gap(28).Children(func() {
+			Column(c).BasisPercent(50).Shrink(1).Children(func() {
+				section(locales.Preferences())
 
-			permanent := a.Settings.PermanentDelete
-			row(locales.PermanentDelete(onOff(permanent)),
-				locales.ScanLimits(a.Settings.MaxScanDepth, a.Settings.MaxScanEntries),
-				func() {
-					if toggle(c, &permanent, locales.PermanentDelete(onOff(permanent))).Changed() {
-						a.Settings.PermanentDelete = permanent
-						if err := a.Store.Save(a.Settings); err != nil {
-							a.SettingsErr = err.Error()
-						} else {
-							a.SettingsErr = ""
-						}
-					}
-				})
-
-			if a.SettingsErr != "" || a.WhitelistErr != "" {
-				block(func() {
-					if a.SettingsErr != "" {
-						Text(c, locales.SettingsUnreadable(a.SettingsErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
-					}
-					if a.WhitelistErr != "" {
-						Text(c, locales.WhitelistUnreadable(a.WhitelistErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
-					}
-				})
-			}
-
-			labels := []string{locales.LanguageSystem()}
-			tags := []string{""}
-			chosen := 0
-			for _, tag := range mygo.App.Languages() {
-				labels = append(labels, i18n.Autonym(tag))
-				tags = append(tags, tag)
-			}
-			for i, tag := range tags {
-				if tag == a.language {
-					chosen = i
-				}
-			}
-			prev := chosen
-			row(locales.SettingsLanguage(), "", func() {
-				seg := SegmentedBase(c, &chosen, len(labels))
-				seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
-					Border(1, hairline()).Label(locales.SettingsLanguage()).Children(func() {
-					for i, label := range labels {
-						s := seg.Segment(i).Padding(6, 12).Radius(6).Label(label)
-						color := fgMuted()
-						switch {
-						case i == chosen:
-							s.Background(pal.ink[1].Alpha(0.32))
-							s.Border(1, pal.ink[1].Alpha(0.55))
-							color = fgPrimary()
-						case s.Hovered():
-							s.Background(faintFill())
-						}
-						s.Children(func() {
-							t := Text(c, label).Font(fontMono).FontSize(11).NoWrap().TextColor(color)
-							if i == chosen {
-								t.FontWeight(500)
+				permanent := a.Settings.PermanentDelete
+				row(locales.PermanentDelete(onOff(permanent)),
+					locales.ScanLimits(a.Settings.MaxScanDepth, a.Settings.MaxScanEntries),
+					func() {
+						if toggle(c, &permanent, locales.PermanentDelete(onOff(permanent))).Changed() {
+							a.Settings.PermanentDelete = permanent
+							if err := a.Store.Save(a.Settings); err != nil {
+								a.SettingsErr = err.Error()
+							} else {
+								a.SettingsErr = ""
 							}
-						})
-					}
-				})
-				if chosen != prev && chosen >= 0 && chosen < len(tags) {
-					a.language = tags[chosen]
-					mygo.App.SetLocale(a.language)
-				}
-			})
-
-			section(locales.WhitelistTitle())
-			block(func() {
-				Text(c, locales.WhitelistHint()).FontSize(sizeCaption).TextColor(fgMuted())
-				Row(c).Gap(8).AlignItems(Center).Children(func() {
-					field := TextInput(c, &a.newPattern).Placeholder(`C:\Users\me\AppData\Local\Keep`).
-						Label(locales.WhitelistTitle()).Width(460)
-					submitted := field.Submitted()
-					if ghostPill(c, locales.WhitelistAdd()).Clicked() || submitted {
-						a.addWhitelistPattern()
-					}
-				})
-				if len(a.whitelist) == 0 {
-					Text(c, locales.WhitelistEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
-				}
-				for i, pattern := range a.whitelist {
-					i, pattern := i, pattern
-					r := Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(4, 0).Height(36)
-					r.Children(func() {
-						Icon(c, iconFolder).FontSize(13).TextColor(fgMuted())
-						Text(c, pattern).Font(fontMono).FontSize(11.5).TextColor(fgPrimary()).NoWrap().Grow(1)
-						if iconButton(c, iconClose, locales.WhitelistRemove()).Clicked() {
-							a.removeWhitelistPattern(i)
 						}
 					})
-					if r.Hovered() {
-						r.Background(faintFill())
+
+				if a.SettingsErr != "" || a.WhitelistErr != "" {
+					block(func() {
+						if a.SettingsErr != "" {
+							Text(c, locales.SettingsUnreadable(a.SettingsErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
+						}
+						if a.WhitelistErr != "" {
+							Text(c, locales.WhitelistUnreadable(a.WhitelistErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
+						}
+					})
+				}
+
+				labels := []string{locales.LanguageSystem()}
+				tags := []string{""}
+				chosen := 0
+				for _, tag := range mygo.App.Languages() {
+					labels = append(labels, i18n.Autonym(tag))
+					tags = append(tags, tag)
+				}
+				for i, tag := range tags {
+					if tag == a.language {
+						chosen = i
 					}
 				}
-				if a.WhitelistErr != "" {
-					Text(c, locales.WhitelistSaveError(a.WhitelistErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
-				}
+				prev := chosen
+				row(locales.SettingsLanguage(), "", func() {
+					seg := SegmentedBase(c, &chosen, len(labels))
+					seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
+						Border(1, hairline()).Label(locales.SettingsLanguage()).Children(func() {
+						for i, label := range labels {
+							s := seg.Segment(i).Padding(6, 12).Radius(6).Label(label)
+							color := fgMuted()
+							switch {
+							case i == chosen:
+								s.Background(pal.ink[1].Alpha(0.32))
+								s.Border(1, pal.ink[1].Alpha(0.55))
+								color = fgPrimary()
+							case s.Hovered():
+								s.Background(faintFill())
+							}
+							s.Children(func() {
+								t := Text(c, label).Font(fontMono).FontSize(11).NoWrap().TextColor(color)
+								if i == chosen {
+									t.FontWeight(500)
+								}
+							})
+						}
+					})
+					if chosen != prev && chosen >= 0 && chosen < len(tags) {
+						a.language = tags[chosen]
+						mygo.App.SetLocale(a.language)
+					}
+				})
+
+				section(locales.WhitelistTitle())
+				block(func() {
+					Text(c, locales.WhitelistHint()).FontSize(sizeCaption).TextColor(fgMuted())
+					Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
+						field := TextInput(c, &a.newPattern).Placeholder(`C:\Users\me\AppData\Local\Keep`).
+							Label(locales.WhitelistTitle()).Grow(1)
+						submitted := field.Submitted()
+						if ghostPill(c, locales.WhitelistAdd()).Clicked() || submitted {
+							a.addWhitelistPattern()
+						}
+					})
+					if len(a.whitelist) == 0 {
+						Text(c, locales.WhitelistEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
+					}
+					for i, pattern := range a.whitelist {
+						i, pattern := i, pattern
+						r := Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(4, 0).Height(36)
+						r.Children(func() {
+							Icon(c, iconFolder).FontSize(13).TextColor(fgMuted())
+							Text(c, pattern).Font(fontMono).FontSize(11.5).TextColor(fgPrimary()).
+								Grow(1).Shrink(1).MinWidth(0).SingleLine().Ellipsis("…").Tooltip(pattern)
+							if iconButton(c, iconClose, locales.WhitelistRemove()).Clicked() {
+								a.removeWhitelistPattern(i)
+							}
+						})
+						if r.Hovered() {
+							r.Background(faintFill())
+						}
+					}
+					if a.WhitelistErr != "" {
+						Text(c, locales.WhitelistSaveError(a.WhitelistErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
+					}
+				})
+
+				section(locales.OperationLog())
+				block(func() {
+					if a.Log == nil {
+						Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
+						return
+					}
+					Text(c, a.Log.Path()).Font(fontMono).FontSize(11).TextColor(fgSecondary()).
+						SingleLine().Ellipsis("…").Tooltip(a.Log.Path())
+					if err := a.Log.RequireWritable(); err != nil {
+						Text(c, locales.LogNotWritable(err.Error())).FontSize(sizeCaption).TextColor(appTheme.Danger)
+					} else {
+						Text(c, locales.LogWritable()).FontSize(sizeCaption).TextColor(appTheme.Success)
+					}
+				})
+
+				row(locales.CleanScreenButton(), locales.CleanScreenRow(), func() {
+					if ghostPill(c, locales.CleanScreenOpen()).Clicked() {
+						a.showCleanScreen()
+					}
+				})
+
 			})
 
-			section(locales.ProtectedFolders())
-			block(func() {
-				Text(c, locales.ProtectedHint()).FontSize(sizeCaption).TextColor(fgMuted()).Margin(0, 0, 6, 0)
-				for _, root := range a.Guard.AllowRoots() {
-					Text(c, root).Font(fontMono).FontSize(11).TextColor(fgSecondary()).NoWrap()
-				}
-			})
+			Column(c).BasisPercent(50).Shrink(1).Children(func() {
+				section(locales.ProtectedFolders())
+				block(func() {
+					Text(c, locales.ProtectedHint()).FontSize(sizeCaption).TextColor(fgMuted()).Margin(0, 0, 6, 0)
+					for _, root := range a.Guard.AllowRoots() {
+						Text(c, root).Font(fontMono).FontSize(11).TextColor(fgSecondary()).
+							SingleLine().Ellipsis("…").Tooltip(root)
+					}
+				})
 
-			section(locales.OperationLog())
-			block(func() {
-				if a.Log == nil {
-					Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
-					return
-				}
-				Text(c, a.Log.Path()).Font(fontMono).FontSize(11).TextColor(fgSecondary()).NoWrap()
-				if err := a.Log.RequireWritable(); err != nil {
-					Text(c, locales.LogNotWritable(err.Error())).FontSize(sizeCaption).TextColor(appTheme.Danger)
-				} else {
-					Text(c, locales.LogWritable()).FontSize(sizeCaption).TextColor(appTheme.Success)
-				}
-			})
-
-			row(locales.CleanScreenButton(), locales.CleanScreenRow(), func() {
-				if ghostPill(c, locales.CleanScreenOpen()).Clicked() {
-					a.showCleanScreen()
-				}
-			})
-
-			section(locales.LogRecent())
-			block(func() {
-				records, err := oplog.Read(a.Log.Path())
-				if err != nil && len(records) == 0 {
-					Text(c, err.Error()).FontSize(sizeCaption).TextColor(appTheme.Danger)
-					return
-				}
-				if len(records) == 0 {
-					Text(c, locales.LogEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
-					return
-				}
-				start := len(records) - 12
-				if start < 0 {
-					start = 0
-				}
-				for _, record := range records[start:] {
-					Text(c, fmt.Sprintf("%s  %-12s %-10s %s", record.Time.Format("15:04:05"), record.Op, record.Result, trim(record.Path, 80))).
-						Font(fontMono).FontSize(11).TextColor(fgMuted()).NoWrap()
-				}
+				section(locales.LogRecent())
+				block(func() {
+					records, err := oplog.Read(a.Log.Path())
+					if err != nil && len(records) == 0 {
+						Text(c, err.Error()).FontSize(sizeCaption).TextColor(appTheme.Danger)
+						return
+					}
+					if len(records) == 0 {
+						Text(c, locales.LogEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
+						return
+					}
+					start := len(records) - 12
+					if start < 0 {
+						start = 0
+					}
+					for _, record := range records[start:] {
+						Text(c, fmt.Sprintf("%s  %-12s %-10s %s", record.Time.Format("15:04:05"), record.Op, record.Result, trim(record.Path, 80))).
+							Font(fontMono).FontSize(11).TextColor(fgMuted()).
+							SingleLine().Ellipsis("…").Tooltip(record.Path)
+					}
+				})
 			})
 		})
 	})
