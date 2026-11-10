@@ -25,19 +25,19 @@ brightness ramp, edges, colour, glow).
 Concept sheet (own renderer, validated): `assets/ascii-planets-concept.png` — Earth, Mars,
 Mercury, Jupiter, Sun on the top row; three Earth rotation angles on the bottom row.
 
-- Grid of monospace cells painted with `Painter.RichText` per row, three tone passes.
+- Grid of monospace cells painted with `Painter.RichText` per row, two tone passes.
 - Sparse ramp for the bodies: `" ·.:+*"` (6 levels). Sparse is what keeps a 64-column globe
   legible — dense ramps (`#`, `@`) turn the disc into a grey block.
 - Sun only: denser emissive ramp `" ·*#%@"`.
 - The body's texture decides *ink density*: land/bands/ice brighter and denser, ocean faint.
-  Lighting multiplies it, so the terminator dims the surface without erasing the silhouette.
-- Light fixed in screen space (upper-left, `L = normalize(-0.58,-0.32,0.75)`), so the
-  terminator stays put while the continents drift under it — this is what reads as 3D
-  rotation.
-- Limb cells (`z < 0.24`) take `·` so the disc edge is a clean circle.
-- Three ink tones per body (faint / mid / lit) picked from `b` (0.22 / 0.55 thresholds).
-  Ink: Earth `#8fbdb0`/`#e9f7f0`, Mars `#b06a50`/`#f2c2a8`, Mercury `#8c8c83`/`#e6e6dc`,
-  Jupiter `#b98a58`/`#f6dfb8`, Sun `#e0a13a`/`#fff0b8`, Moon `#8f8f86`/`#efece1`.
+  There is no light terminator: `b = 0.35 + 0.65·tex`, so the whole disc keeps enough ink
+  to read at a glance (revision 2026-11-10: the shadow side was hard to see).
+- Every cell inside the disc is inked — no blank cells and no night side. Only the surface
+  rotates; the visible disc stays fixed.
+- Two ink tones per body (base / lit) picked from `b` (0.78 threshold), using the palette's
+  mid and lit entries. Ink: Earth `#8fbdb0`/`#e9f7f0`, Mars `#b4694f`/`#f2c2a8`, Mercury
+  `#8f8f88`/`#e3e3da`, Jupiter `#c08e5a`/`#f6dfb8`, Sun `#e0a13a`/`#fff0b8`, Moon
+  `#8f8f86`/`#efece1`.
 - Per-body texture (own math, no images): Earth fBm continents + ice caps, Mars crater
   fields, Mercury grey craters, Jupiter latitude bands + storm oval, Sun emissive
   granulation (no terminator), Moon neutral.
@@ -59,10 +59,10 @@ Per frame, per cell (`u,v` in `[-1,1]`, disc test `u²+v² ≤ 1`):
 
 1. `z = sqrt(1-u²-v²)`; tilt the point about X (`≈20°`), then rotate about Y by `angle`.
 2. `lat = asin(y)`, `lon = atan2(x, z')`; sample the body texture at `(lon, lat)`.
-3. `day = smoothstep(-0.12, 0.28, u·Lx + v·Ly + z·Lz)`.
-4. `b = day·(0.35 + 0.65·tex) + 0.10·(1-z)⁴`, clamped; `b = b^1.5` for a tight dither;
-   `idx = int(b·(len(ramp)-1))`; limb cells take `max(idx, 2)` and the `·` glyph.
-5. Three row strings per row — one per tone — so `RichText` draws whole runs and positions
+3. `b = pow(clamp(0.35 + 0.65·tex, 0, 1), 1.2)` — texture only, no light terminator.
+4. `idx = 1 + int(b·(len(ramp)-2))`, clamped to `len(ramp)-1`: every cell inside the disc
+   is inked, so the ramp's blank and faintest levels are never picked.
+5. Two row strings per row — one per tone — so `RichText` draws whole runs and positions
    never drift: each pass holds its own cells and spaces elsewhere.
 
 Cell metrics: `cols = clamp(round(size/5.0), 16, 72)`; `cellW = size/cols`;
@@ -71,7 +71,7 @@ Hero globes grow to 320 px (from 232) so a 64-column globe stays legible; smalle
 placeholders use 160 px (32 columns). Measure the mono advance once (`MeasureText` on
 `"MMMMMMMMMM"`) and adjust `cellW` so rows never drift or wrap.
 
-Static cache: the cell frame (`u,v,z,ndl,limb`, and a per-cell texture base) depends only on
+Static cache: the cell frame (`u,v,z,inside`) depends only on
 `(cols, rows, tilt)` — cache it in a small `sync.Map`/package map. Per frame only the
 rotated longitude lookup and ramp index are computed.
 

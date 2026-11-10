@@ -39,7 +39,7 @@ copied — the source stash forbids it and Elom is MIT.
 |---|---|---|---|---|---|
 | 1 | Visual assets | 106 SVGs, planet JPG/PNG, logo | keep our 24-grid line icons; draw planets procedurally | high (licence) | own assets only |
 | 2 | Background + cards | base + tab wash (alpha 217→107), acrylic cards | base + wash ramp in one painter gradient; card fill = wash sunk 15% | low | port the math |
-| 3 | Planets | D3D textured spheres | ASCII character globe: brightness ramp, 3D surface rotation, fixed terminator, limb dots | low | own ASCII globe |
+| 3 | Planets | D3D textured spheres | ASCII character globe: brightness ramp, 3D surface rotation, evenly lit full disc | low | own ASCII globe |
 | 4 | Cards | radius 12, 16/14 padding, 0.6 hairline, 10 pt tracked caps, 26/13 value | same numbers in `design.go` | low | adopt |
 | 5 | Status grid | 4×2 fixed 164 px + process table | 4 cols, 164 px rows, 8 tiles, custom process rows | low | adopt |
 | 6 | Settings | modal overlay + segmented tabs | one card, label/description rows, control right; overlay primitive only if phase 4 needs it | low | rows, no overlay |
@@ -80,7 +80,7 @@ copied — the source stash forbids it and Elom is MIT.
 2. `design_test.go` pins `composite`, `sink`, `lift`, `alphaAt` against vectors copied from
    `TabWash.cs` (values, not code).
 3. Planets are character globes drawn in `Painter.Draw`: geometry cached per grid size, surface
-   rotating at 20 fps, terminator and limb fixed; `ReduceMotion` and the Status screen render a
+   rotating at 20 fps under even light (no shadow side); `ReduceMotion` and the Status screen render a
    static frame (`planet_test`, `BenchmarkGlobe`).
 4. Status: 4×2 grid of 164 px tiles; CPU shows per-core bars; network shows down/up fills;
    memory and free space are rounded rails; process rows show name, mono memory, CPU rail +
