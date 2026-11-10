@@ -194,15 +194,12 @@ func (a *App) cleanPage(c *Context, pal palette) {
 }
 
 // cleanHero is the centered planet and the one action above the review: one
-// stage, vertically placed in the window, with a horizon under the globe and
-// a local halo, rather than a globe dropped at the top of a scroll page.
+// stage, vertically placed in the window, with the globe over the text rather
+// than a globe dropped at the top of a scroll page.
 func (a *App) cleanHero(c *Context, pal palette, size float32, content func()) {
 	Column(c).FillWidth().AlignItems(Center).
 		Padding(16, 0, 16, 0).Gap(28).Children(func() {
-		Column(c).AlignItems(Center).Gap(10).Children(func() {
-			planet(c, size, pal)
-			Box(c).Width(280).Height(1).Background(hairline())
-		})
+		planet(c, size, pal)
 		Column(c).FillWidth().AlignItems(Center).Gap(12).Children(content)
 	})
 }

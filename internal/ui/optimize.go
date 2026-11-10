@@ -58,10 +58,7 @@ func (a *App) optimizePage(c *Context, pal palette) {
 	st := &a.optimize
 
 	Column(c).FillWidth().AlignItems(Center).Padding(28, 0, 10, 0).Gap(28).Children(func() {
-		Column(c).AlignItems(Center).Gap(10).Children(func() {
-			planet(c, 196, pal)
-			Box(c).Width(280).Height(1).Background(hairline())
-		})
+		planet(c, 196, pal)
 		Column(c).FillWidth().AlignItems(Center).Gap(14).Children(func() {
 			Text(c, locales.OptimizePoem()).Font(fontMono).FontSize(12.5).LineHeight(1.7).
 				TextAlign(Center).TextColor(softText())
