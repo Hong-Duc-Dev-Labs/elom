@@ -1,0 +1,503 @@
+[
+  {
+    "id": "chrome-cache",
+    "category": "browser",
+    "app": "Google Chrome",
+    "paths": [
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Cache",
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Code Cache",
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\GPUCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Chrome rebuilds these. Profiles, cookies, history and passwords are untouched."
+  },
+  {
+    "id": "edge-cache",
+    "category": "browser",
+    "app": "Microsoft Edge",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Cache",
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Code Cache",
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\GPUCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Edge rebuilds these; its profile data stays."
+  },
+  {
+    "id": "firefox-cache",
+    "category": "browser",
+    "app": "Firefox",
+    "paths": [
+      "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\cache2"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "The HTTP cache only; bookmarks, logins and history live elsewhere."
+  },
+  {
+    "id": "brave-cache",
+    "category": "browser",
+    "app": "Brave",
+    "paths": [
+      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Cache",
+      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Brave rebuilds these."
+  },
+  {
+    "id": "chrome-gpu-shader-cache",
+    "category": "browser",
+    "app": "Google Chrome",
+    "paths": [
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\ShaderCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Compiled shaders; Chrome recompiles them on demand."
+  },
+  {
+    "id": "vscode-cache",
+    "category": "app-cache",
+    "app": "Visual Studio Code",
+    "paths": [
+      "%APPDATA%\\Code\\Cache",
+      "%APPDATA%\\Code\\CachedData",
+      "%APPDATA%\\Code\\Code Cache",
+      "%APPDATA%\\Code\\GPUCache",
+      "%APPDATA%\\Code\\logs"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Settings, extensions and workspace state are not in these folders."
+  },
+  {
+    "id": "vscode-insiders-cache",
+    "category": "app-cache",
+    "app": "Visual Studio Code Insiders",
+    "paths": [
+      "%APPDATA%\\Code - Insiders\\Cache",
+      "%APPDATA%\\Code - Insiders\\CachedData",
+      "%APPDATA%\\Code - Insiders\\logs"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Same as Visual Studio Code, for the Insiders build."
+  },
+  {
+    "id": "teams-cache",
+    "category": "app-cache",
+    "app": "Microsoft Teams",
+    "paths": [
+      "%APPDATA%\\Microsoft\\Teams\\Cache",
+      "%APPDATA%\\Microsoft\\Teams\\Code Cache",
+      "%APPDATA%\\Microsoft\\Teams\\GPUCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Teams downloads its cache again; chat history stays on the server."
+  },
+  {
+    "id": "slack-cache",
+    "category": "app-cache",
+    "app": "Slack",
+    "paths": [
+      "%APPDATA%\\Slack\\Cache",
+      "%APPDATA%\\Slack\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Slack rebuilds its cache; workspace data is kept."
+  },
+  {
+    "id": "discord-cache",
+    "category": "app-cache",
+    "app": "Discord",
+    "paths": [
+      "%APPDATA%\\discord\\Cache",
+      "%APPDATA%\\discord\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Discord rebuilds its cache."
+  },
+  {
+    "id": "spotify-cache",
+    "category": "app-cache",
+    "app": "Spotify",
+    "paths": [
+      "%LOCALAPPDATA%\\Spotify\\Storage"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Streaming cache older than a week. Downloaded albums are in the same tree: check them first."
+  },
+  {
+    "id": "office-file-cache",
+    "category": "app-cache",
+    "app": "Microsoft Office",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Office\\16.0\\OfficeFileCache"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Documents opened from SharePoint or OneDrive. Unsaved offline edits can exist: open them first."
+  },
+  {
+    "id": "d3d-shader-cache",
+    "category": "app-cache",
+    "app": "DirectX",
+    "paths": [
+      "%LOCALAPPDATA%\\D3DSCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Games rebuild it; the first launch afterwards may stutter."
+  },
+  {
+    "id": "nvidia-shader-cache",
+    "category": "app-cache",
+    "app": "NVIDIA",
+    "paths": [
+      "%LOCALAPPDATA%\\NVIDIA\\DXCache",
+      "%LOCALAPPDATA%\\NVIDIA\\GLCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "The driver rebuilds these caches."
+  },
+  {
+    "id": "amd-shader-cache",
+    "category": "app-cache",
+    "app": "AMD",
+    "paths": [
+      "%LOCALAPPDATA%\\AMD\\DxCache",
+      "%LOCALAPPDATA%\\AMD\\DxcCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "The driver rebuilds these caches."
+  },
+  {
+    "id": "explorer-thumbnails",
+    "category": "system-temp",
+    "app": "Windows Explorer",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer\\thumbcache_*.db"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Thumbnail cache. Explorer rebuilds it; pictures appear again the first time you open a folder."
+  },
+  {
+    "id": "explorer-icon-cache",
+    "category": "system-temp",
+    "app": "Windows Explorer",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer\\iconcache_*.db"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Icon cache. Explorer rebuilds it; restart Explorer if icons look wrong afterwards."
+  },
+  {
+    "id": "user-temp",
+    "category": "system-temp",
+    "app": "Windows",
+    "paths": [
+      "%TEMP%\\*"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Files older than a week. Newer ones may belong to a program that is running."
+  },
+  {
+    "id": "crash-dumps",
+    "category": "logs",
+    "app": "Windows",
+    "paths": [
+      "%LOCALAPPDATA%\\CrashDumps"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Crash dumps are only useful for debugging a crash you still care about."
+  },
+  {
+    "id": "error-reporting",
+    "category": "logs",
+    "app": "Windows Error Reporting",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Windows\\WER"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Queued and archived crash reports older than a week."
+  },
+  {
+    "id": "npm-cache",
+    "category": "dev-cache",
+    "app": "npm",
+    "paths": [
+      "%LOCALAPPDATA%\\npm-cache\\_cacache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "npm downloads packages again on the next install."
+  },
+  {
+    "id": "pnpm-store",
+    "category": "dev-cache",
+    "app": "pnpm",
+    "paths": [
+      "%LOCALAPPDATA%\\pnpm\\store"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "pnpm's content-addressed store. Existing projects still run; new installs re-download."
+  },
+  {
+    "id": "yarn-cache",
+    "category": "dev-cache",
+    "app": "Yarn",
+    "paths": [
+      "%LOCALAPPDATA%\\Yarn\\Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Yarn Classic re-downloads packages when it needs them."
+  },
+  {
+    "id": "go-build-cache",
+    "category": "dev-cache",
+    "app": "Go",
+    "paths": [
+      "%LOCALAPPDATA%\\go-build"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Go rebuilds compiled packages; the next build is slower once."
+  },
+  {
+    "id": "go-module-downloads",
+    "category": "dev-cache",
+    "app": "Go",
+    "paths": [
+      "%USERPROFILE%\\go\\pkg\\mod\\cache\\download"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Module zips and checksums. Projects keep building; offline builds and new downloads need the network."
+  },
+  {
+    "id": "pip-cache",
+    "category": "dev-cache",
+    "app": "pip",
+    "paths": [
+      "%LOCALAPPDATA%\\pip\\Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "pip re-downloads wheels on the next install."
+  },
+  {
+    "id": "cargo-registry-cache",
+    "category": "dev-cache",
+    "app": "Rust / Cargo",
+    "paths": [
+      "%USERPROFILE%\\.cargo\\registry\\cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Crate archives; the registry index and built artifacts are kept."
+  },
+  {
+    "id": "gradle-caches",
+    "category": "dev-cache",
+    "app": "Gradle",
+    "paths": [
+      "%USERPROFILE%\\.gradle\\caches"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Dependencies and build caches older than a week; the next build re-downloads."
+  },
+  {
+    "id": "nuget-cache",
+    "category": "dev-cache",
+    "app": "NuGet",
+    "paths": [
+      "%LOCALAPPDATA%\\NuGet\\v3-cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "HTTP cache only; global packages stay."
+  },
+  {
+    "id": "opera-cache",
+    "category": "browser",
+    "app": "Opera",
+    "paths": [
+      "%LOCALAPPDATA%\\Opera Software\\Opera Stable\\Cache",
+      "%LOCALAPPDATA%\\Opera Software\\Opera Stable\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Opera rebuilds these; its profile data stays."
+  },
+  {
+    "id": "vivaldi-cache",
+    "category": "browser",
+    "app": "Vivaldi",
+    "paths": [
+      "%LOCALAPPDATA%\\Vivaldi\\User Data\\*\\Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Vivaldi rebuilds its cache."
+  },
+  {
+    "id": "thunderbird-cache",
+    "category": "browser",
+    "app": "Thunderbird",
+    "paths": [
+      "%LOCALAPPDATA%\\Thunderbird\\Profiles\\*\\cache2"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "The HTTP cache only; mail is stored in the profile, untouched."
+  },
+  {
+    "id": "notion-cache",
+    "category": "app-cache",
+    "app": "Notion",
+    "paths": [
+      "%APPDATA%\\Notion\\Cache",
+      "%APPDATA%\\Notion\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Notion rebuilds its cache; pages sync from the server."
+  },
+  {
+    "id": "postman-cache",
+    "category": "app-cache",
+    "app": "Postman",
+    "paths": [
+      "%APPDATA%\\Postman\\Cache",
+      "%APPDATA%\\Postman\\Code Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Postman rebuilds its cache; collections live elsewhere."
+  },
+  {
+    "id": "obs-logs",
+    "category": "logs",
+    "app": "OBS Studio",
+    "paths": [
+      "%APPDATA%\\obs-studio\\logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Log files older than a week; recordings and scenes are elsewhere."
+  },
+  {
+    "id": "npm-logs",
+    "category": "logs",
+    "app": "npm",
+    "paths": [
+      "%LOCALAPPDATA%\\npm-cache\\_logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Old npm debug logs; nothing needed for installs."
+  },
+  {
+    "id": "zoom-logs",
+    "category": "logs",
+    "app": "Zoom",
+    "paths": [
+      "%APPDATA%\\Zoom\\logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Zoom's own logs older than a week; recordings are elsewhere."
+  }
+]

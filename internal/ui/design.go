@@ -1,0 +1,470 @@
+package ui
+
+import (
+	"math"
+
+	. "github.com/egoist/mygo/ui"
+	"github.com/egoist/mygo/ui/chart"
+)
+
+// The window follows Mole's measured design system: base #15141b with the
+// screen's tab wash over it (alpha 217 at the top, 107 from the middle down),
+// cards cut from that wash and sunk toward the base, one type scale, and the
+// session's planet drawn as a character globe. These values are measured from
+// Mole's UI (TabWash.cs, HudTile.cs, TabWashes.cs) and are ours to use; no
+// asset or glyph path is copied.
+
+// Font stacks, with the Windows 10 fallbacks: Segoe UI Variable ships with
+// Windows 11, Cascadia Mono with Windows Terminal, Georgia everywhere.
+const (
+	fontDisplay = "Segoe UI Variable Display, Segoe UI"
+	fontBody    = "Segoe UI Variable Text, Segoe UI"
+	fontMono    = "Cascadia Mono, Consolas"
+)
+
+// Base and accent, as Mole's Surface.cs.
+var (
+	bgBase     = Hex("#15141b")
+	accentMint = Hex("#4fd6a9")
+)
+
+// Type scale and spacing, in DIPs.
+const (
+	sizeFootnote = 10.0
+	sizeCaption  = 11.0
+	sizeBody     = 13.5
+	sizeValue    = 26.0
+
+	radiusCard  = 12.0
+	radiusRow   = 8.0
+	radiusPill  = 999.0
+	radiusTile  = 4.0
+	padCardSide = 16.0
+	padCardVert = 14.0
+)
+
+var appTheme = func() *Theme {
+	t := DarkTheme()
+	t.Background = bgBase
+	t.Surface = RGBA(255, 255, 255, 0.055)
+	t.SurfaceHover = RGBA(255, 255, 255, 0.10)
+	t.SurfacePressed = RGBA(255, 255, 255, 0.14)
+	t.Border = RGBA(237, 236, 238, 0.078)
+	t.Text = Hex("#ededee")
+	t.TextMuted = Hex("#9aa3b2")
+	t.Accent = Hex("#f2eee4")
+	t.AccentHover = Hex("#ffffff")
+	t.AccentPressed = Hex("#ddd6c6")
+	t.AccentText = Hex("#10151f")
+	t.InactiveAccent = t.Accent
+	t.Danger = Hex("#ff8a80")
+	t.Warning = Hex("#f2c078")
+	t.Success = accentMint
+	t.Selection = RGBA(242, 238, 228, 0.22)
+	t.Focus = RGBA(242, 238, 228, 0.55)
+	t.Inverse = Hex("#f5f1e8")
+	t.InverseText = Hex("#10151f")
+	t.Scrollbar = RGBA(255, 255, 255, 0.22)
+	t.ScrollbarWidth = 8
+	t.Radius = radiusCard
+	t.Spacing = 4
+	t.FontSize = sizeBody
+	return t
+}()
+
+// palette is one screen's share of the look: the wash that tints the window
+// and its cards, the glow behind the content, and the character globe that
+// stands for the screen.
+type palette struct {
+	wash Color
+	glow Color
+	tiles []Color
+	// ink is the globe's three tones: faint, mid, lit.
+	ink  [3]Color
+	body planetKind
+}
+
+func paletteFor(id string) palette {
+	switch id {
+	case "software":
+		return palette{
+			wash: Hex("#47201d"), glow: Hex("#c0645a"),
+			tiles: []Color{Hex("#8e5a4a"), Hex("#a7654a"), Hex("#7d4b3c")},
+			ink:   [3]Color{Hex("#5e3a31"), Hex("#b4694f"), Hex("#f2c2a8")},
+			body:  mars,
+		}
+	case "startup":
+		return palette{
+			wash: Hex("#123028"), glow: Hex("#3fae86"),
+			tiles: []Color{Hex("#3d7460"), Hex("#4f8a6d"), Hex("#356b58")},
+			ink:   [3]Color{Hex("#2f5a4c"), Hex("#7fb99f"), Hex("#d8f0e2")},
+			body:  moon,
+		}
+	case "optimize":
+		return palette{
+			wash: Hex("#423d38"), glow: Hex("#a8a29c"),
+			tiles: []Color{Hex("#6f6a63"), Hex("#7c776f"), Hex("#605c56")},
+			ink:   [3]Color{Hex("#4c4c48"), Hex("#8f8f88"), Hex("#e3e3da")},
+			body:  mercury,
+		}
+	case "analyze":
+		return palette{
+			wash: Hex("#5c3011"), glow: Hex("#d39a62"),
+			tiles: []Color{Hex("#8e6650"), Hex("#9a6a3a"), Hex("#a7553a"), Hex("#8a5a3a"), Hex("#7e5a48"), Hex("#5e3d2a"), Hex("#8d6855"), Hex("#6e4a35")},
+			ink:   [3]Color{Hex("#6a5340"), Hex("#c08e5a"), Hex("#f6dfb8")},
+			body:  jupiter,
+		}
+	case "status":
+		return palette{
+			wash: Hex("#574312"), glow: Hex("#e0ae4c"),
+			ink:  [3]Color{Hex("#7c4a1c"), Hex("#e0a13a"), Hex("#fff0b8")},
+			body: sun,
+		}
+	case "settings":
+		return palette{
+			wash: Hex("#262c38"), glow: Hex("#5b6d8c"),
+			ink:  [3]Color{Hex("#43433f"), Hex("#8f8f86"), Hex("#efece1")},
+			body: moon,
+		}
+	default: // clean
+		return palette{
+			wash: Hex("#29385c"), glow: Hex("#4f7fc4"),
+			tiles: []Color{Hex("#4e6f8a"), Hex("#5a7f7a"), Hex("#3f5f78")},
+			ink:   [3]Color{Hex("#3f5f5a"), Hex("#8fbdb0"), Hex("#e9f7f0")},
+			body:  earth,
+		}
+	}
+}
+
+// mixPalette blends two screens' washes for the tab cross-fade. Only the tint
+// and the glow move; the rest snaps with the screen.
+func mixPalette(a, b palette, t float32) palette {
+	t = clampFrac(t)
+	if t >= 1 {
+		return b
+	}
+	out := b
+	out.wash = a.wash.Mix(b.wash, t)
+	out.glow = a.glow.Mix(b.glow, t)
+	for i := range out.ink {
+		out.ink[i] = a.ink[i].Mix(b.ink[i], t)
+	}
+	return out
+}
+
+// washAlphaAt is Mole's ramp: 217/255 at the top, 107/255 from the middle
+// down, straight in between (TabWash.AlphaAt).
+func washAlphaAt(f float32) float32 {
+	f = clampFrac(f)
+	if f >= 0.5 {
+		return 107.0 / 255.0
+	}
+	return (217.0 - 110.0*(f/0.5)) / 255.0
+}
+
+// washOver composites the wash over bg at fraction f of the ramp.
+func washOver(bg, wash Color, f float32) Color {
+	a := float64(washAlphaAt(f))
+	mix := func(u, o uint8) uint8 {
+		return uint8(math.Round(float64(u) + float64(int(o)-int(u))*a))
+	}
+	return RGB(mix(bg.R, wash.R), mix(bg.G, wash.G), mix(bg.B, wash.B))
+}
+
+// sink moves c a fraction k of the way toward under, as a card sits below the
+// wash it is cut from.
+func sink(c, under Color, k float32) Color {
+	f := func(v, u uint8) uint8 {
+		return uint8(math.Round(float64(v) + float64(int(u)-int(v))*float64(k)))
+	}
+	return RGB(f(c.R, under.R), f(c.G, under.G), f(c.B, under.B))
+}
+
+// cardGround is the fill of every card on a screen: the wash composited over
+// the base, then sunk 15% back toward the base (TabWash.CardGround).
+func cardGround(wash Color) Color {
+	return sink(washOver(bgBase, wash, 1), bgBase, 0.15)
+}
+
+// frameWash is the wash of the frame being built: View sets it before the
+// screens, and card() reads it. The view is built on the UI thread only.
+var frameWash = paletteFor("clean").wash
+
+func frameCard() Color { return cardGround(frameWash) }
+
+func fgPrimary() Color   { return Hex("#ededee") }
+func fgSecondary() Color { return RGBA(237, 236, 238, 0.72) }
+func fgMuted() Color     { return RGBA(237, 236, 238, 0.55) }
+func fgFaint() Color     { return RGBA(237, 236, 238, 0.35) }
+func hairline() Color    { return RGBA(237, 236, 238, 0.078) }
+func faintFill() Color   { return RGBA(255, 255, 255, 0.055) }
+func faintFill2() Color  { return RGBA(255, 255, 255, 0.09) }
+func quietText() Color   { return fgMuted() }
+func softText() Color    { return fgSecondary() }
+func clampFrac(v float32) float32 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+// card is a translucent panel cut from the screen's wash: radius 12, 14/16
+// padding, a 0.6 hairline border.
+func card(c *Context) Element {
+	return Box(c).FillWidth().
+		Padding(padCardVert, padCardSide).
+		Radius(radiusCard).
+		Background(frameCard()).
+		Border(0.6, hairline())
+}
+
+// cardWith is card with a column of children gap DIPs apart.
+func cardWith(c *Context, gap float32, fn func()) Element {
+	return card(c).Children(func() {
+		Column(c).FillWidth().Gap(gap).Children(fn)
+	})
+}
+
+// cardHead is a card's title row: a small colored dot, the label in tracked
+// capitals, and room for a value or an action on the right.
+func cardHead(c *Context, pal palette, label, meta string) {
+	Row(c).FillWidth().AlignItems(Center).Gap(8).Children(func() {
+		Box(c).Size(6, 6).Radius(3).Background(pal.glow)
+		Text(c, label).FontSize(sizeFootnote).FontWeight(700).
+			LetterSpacing(0.8).TextColor(fgMuted()).NoWrap()
+		Spacer(c)
+		if meta != "" {
+			Text(c, meta).FontSize(sizeCaption).TextColor(fgMuted()).NoWrap()
+		}
+	})
+}
+
+// rule is the hairline between a card's title and its body.
+func rule(c *Context) {
+	Box(c).FillWidth().Height(1).Background(hairline())
+}
+
+// bigNumber is a screen's result: a large figure with its unit beside it.
+func bigNumber(c *Context, value, unit string) {
+	Row(c).AlignItems(End).Gap(4).Children(func() {
+		Text(c, value).Font(fontDisplay).FontSize(sizeValue).FontWeight(600).TextColor(fgPrimary()).NoWrap()
+		if unit != "" {
+			Text(c, unit).FontSize(13).FontWeight(500).TextColor(fgMuted()).Margin(0, 0, 3, 0)
+		}
+	})
+}
+
+func hintText(c *Context, s string) {
+	Text(c, s).FontSize(sizeCaption).TextColor(fgMuted())
+}
+
+// primaryPill is the one action a screen offers, shaped as Mole's.
+func primaryPill(c *Context, label string) Element {
+	return PrimaryButton(c, label).Radius(radiusPill).Padding(9, 24)
+}
+
+// ghostPill is a secondary action beside primaryPill.
+func ghostPill(c *Context, label string) Element {
+	return Button(c, label).Radius(radiusPill).Padding(9, 20)
+}
+
+// pillTag is a small neutral chip, as "needs administrator" on a task.
+func pillTag(c *Context, label string, fg Color) Element {
+	return Box(c).Padding(3, 9).Radius(radiusPill).Background(faintFill2()).
+		Border(1, hairline()).Children(func() {
+		Text(c, label).FontSize(sizeFootnote).TextColor(fg).NoWrap()
+	})
+}
+
+// listRow is one row of a list: 44 DIPs high, 8 radius, 12 gap. It does not
+// paint its hover state; the caller does when the row is interactive.
+func listRow(c *Context) Element {
+	return Row(c).FillWidth().Height(44).Padding(0, 8).Radius(radiusRow).
+		AlignItems(Center).Gap(12)
+}
+
+// rowDivider is the hairline between two list rows, inset to line up with
+// the text rather than the icons.
+func rowDivider(c *Context) {
+	Box(c).FillWidth().Height(1).Margin(0, 8).Background(hairline())
+}
+
+// bar is a track with a filled part, 0 to 1, rounded and tinted.
+func bar(c *Context, fraction float32, color Color, height float32) Element {
+	return Box(c).FillWidth().Height(height).Radius(height/2).
+		Background(RGBA(255, 255, 255, 0.10)).Draw(func(p *Painter, r Rect) {
+		w := r.W * clampFrac(fraction)
+		if w <= 0 {
+			return
+		}
+		p.FillGradient(Rect{X: r.X, Y: r.Y, W: w, H: r.H}, LinearGradient{
+			Angle: 90,
+			From:  color.Alpha(0.55),
+			To:    color.Alpha(0.95),
+		}, r.H/2)
+	})
+}
+
+// toggle is a switch whose track stays visible under the white knob.
+func toggle(c *Context, on *bool) Element {
+	track := RGBA(255, 255, 255, 0.16)
+	if *on {
+		track = accentMint.Alpha(0.85)
+	}
+	return Switch(c, on).Background(track)
+}
+
+// barsChart draws a series as a row of thin bars, as Mole's CPU reading.
+func barsChart(c *Context, series []float64, maxValue float64, color Color, height float32) Element {
+	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
+		n := len(series)
+		if n == 0 || maxValue <= 0 || r.W <= 0 {
+			return
+		}
+		// The sampler keeps 60 samples, one a second: lay them out in those
+		// slots and let a short series fill in from the right, so the chart
+		// keeps its rhythm from the first second.
+		slots := 60
+		if n > slots {
+			slots = n
+		}
+		slot := r.W / float32(slots)
+		barW := min(6, max(1.5, slot-2))
+		if barW <= 0 {
+			return
+		}
+		for s := range slots {
+			x := r.X + float32(s)*slot + (slot-barW)/2
+			p.Fill(Rect{X: x, Y: r.Y + r.H - 2, W: barW, H: 2}, color.Alpha(0.18), 1)
+		}
+		start := slots - n
+		for i, v := range series {
+			f := clampFrac(float32(v / maxValue))
+			h := r.H * (0.14 + 0.82*f)
+			x := r.X + float32(start+i)*slot + (slot-barW)/2
+			p.FillGradient(Rect{X: x, Y: r.Y + r.H - h, W: barW, H: h}, LinearGradient{
+				Angle: 90,
+				From:  color.Alpha(0.45),
+				To:    color.Alpha(0.95),
+			}, min(1.5, barW/2))
+		}
+	})
+}
+
+// perCoreBars is Mole's CPU reading: one bar per logical processor, the
+// current share of its core.
+func perCoreBars(c *Context, cores []float64, height float32) Element {
+	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
+		n := len(cores)
+		if n == 0 || r.W <= 0 {
+			return
+		}
+		slot := r.W / float32(n)
+		w := min(9, max(2, slot-3))
+		for i, v := range cores {
+			f := clampFrac(float32(v / 100))
+			h := max(1.5, r.H*f)
+			x := r.X + float32(i)*slot + (slot-w)/2
+			p.Fill(Rect{X: x, Y: r.Y + r.H - 1, W: w, H: 1}, RGBA(255, 255, 255, 0.12), 0)
+			p.FillGradient(Rect{X: x, Y: r.Y + r.H - h, W: w, H: h}, LinearGradient{
+				Angle: 90,
+				From:  accentMint.Alpha(0.45),
+				To:    accentMint.Alpha(0.95),
+			}, min(1.5, w/2))
+		}
+	})
+}
+
+// areaChart draws a series as a soft filled curve, as Mole's network card.
+func areaChart(c *Context, series []float64, maxValue float64, color Color, height float32) Element {
+	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
+		n := len(series)
+		if n < 2 || maxValue <= 0 || r.W <= 0 {
+			return
+		}
+		xs := make([]float32, n)
+		ys := make([]float32, n)
+		for i, v := range series {
+			xs[i] = float32(i) / float32(n-1)
+			ys[i] = clampFrac(float32(v / maxValue))
+		}
+		area := chart.Area(r, xs, nil, ys, chart.CurveMonotone)
+		p.FillPathGradient(area, LinearGradient{
+			Angle: 180,
+			From:  color.Alpha(0.30),
+			To:    color.Alpha(0.02),
+		})
+		p.StrokePath(chart.Line(r, xs, ys, chart.CurveMonotone), 1.4, color.Alpha(0.85))
+	})
+}
+
+// netChart draws the network card's two series: what came down filled, what
+// went up as a line, over one shared maximum.
+func netChart(c *Context, down, up []float64, maxValue float64, height float32) Element {
+	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
+		n := max(len(down), len(up))
+		if n < 2 || maxValue <= 0 || r.W <= 0 {
+			p.Fill(Rect{X: r.X, Y: r.Y + r.H - 1, W: r.W, H: 1}, RGBA(255, 255, 255, 0.10), 0)
+			return
+		}
+		series := func(v []float64) ([]float32, []float32) {
+			xs := make([]float32, n)
+			ys := make([]float32, n)
+			off := n - len(v)
+			for i := range xs {
+				xs[i] = float32(i) / float32(n-1)
+				if i >= off {
+					ys[i] = clampFrac(float32(v[i-off] / maxValue))
+				}
+			}
+			return xs, ys
+		}
+		dx, dy := series(down)
+		ux, uy := series(up)
+		p.FillPathGradient(chart.Area(r, dx, nil, dy, chart.CurveMonotone), LinearGradient{
+			Angle: 180,
+			From:  accentMint.Alpha(0.26),
+			To:    accentMint.Alpha(0.02),
+		})
+		p.StrokePath(chart.Line(r, dx, dy, chart.CurveMonotone), 1.3, accentMint.Alpha(0.75))
+		p.StrokePath(chart.Line(r, ux, uy, chart.CurveMonotone), 1.3, Hex("#8fb4ff").Alpha(0.75))
+	})
+}
+
+// lineChart is areaChart without the fill, for a quiet series.
+func lineChart(c *Context, series []float64, maxValue float64, color Color, height float32) Element {
+	return Box(c).FillWidth().Height(height).Draw(func(p *Painter, r Rect) {
+		n := len(series)
+		if n < 2 || maxValue <= 0 || r.W <= 0 {
+			return
+		}
+		xs := make([]float32, n)
+		ys := make([]float32, n)
+		for i, v := range series {
+			xs[i] = float32(i) / float32(n-1)
+			ys[i] = clampFrac(float32(v / maxValue))
+		}
+		p.StrokePath(chart.Line(r, xs, ys, chart.CurveMonotone), 1.4, color.Alpha(0.85))
+	})
+}
+
+// readableOn picks dark or light text for a filled tile, so treemap labels
+// stay legible on every band of the palette.
+func readableOn(fill Color) Color {
+	l := 0.2126*float32(fill.R) + 0.7152*float32(fill.G) + 0.0722*float32(fill.B)
+	if l > 148 {
+		return Hex("#2a1a0d")
+	}
+	return Hex("#fffaf0")
+}
+
+// percentOf is used by the cards that show a share of a whole.
+func percentOf(part, whole float64) float64 {
+	if whole <= 0 {
+		return 0
+	}
+	return math.Min(100, part/whole*100)
+}
