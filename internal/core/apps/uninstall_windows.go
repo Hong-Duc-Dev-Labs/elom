@@ -17,8 +17,8 @@ func RunUninstall(ctx context.Context, command string, onLine func(string)) erro
 	if strings.TrimSpace(command) == "" {
 		return ErrNoUninstaller
 	}
-	cmd := exec.CommandContext(ctx, "cmd.exe", "/c", command)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	cmd := exec.CommandContext(ctx, "cmd.exe")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CmdLine: uninstallCmdLine(command)}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -45,4 +45,13 @@ func RunUninstall(ctx context.Context, command string, onLine func(string)) erro
 	<-done
 	<-done
 	return cmd.Wait()
+}
+
+// uninstallCmdLine builds cmd's command line by hand. Go's argument escaping
+// turns the vendor's quotes into \", which cmd does not understand, so a
+// quoted path such as "C:\Program Files\X\unins.exe" /S would not run. With
+// /s, cmd strips exactly the outer pair of quotes added here and runs the
+// vendor's string unchanged, however many quotes it holds; /d skips AutoRun.
+func uninstallCmdLine(command string) string {
+	return `cmd.exe /d /s /c "` + command + `"`
 }

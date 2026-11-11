@@ -87,7 +87,31 @@ func RunJob(jobPath string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(ResultPath(jobPath), out, 0o644)
+	return writeResult(ResultPath(jobPath), out)
+}
+
+// writeResult writes the results to a temporary file beside path and renames
+// it into place, so the waiting UI never reads half a file.
+func writeResult(path string, data []byte) error {
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".*")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		os.Remove(name)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(name)
+		return err
+	}
+	if err := os.Rename(name, path); err != nil {
+		os.Remove(name)
+		return err
+	}
+	return nil
 }
 
 // ResultPath is where an elevated run writes its results.

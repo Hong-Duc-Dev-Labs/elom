@@ -9,7 +9,9 @@ import (
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
 
+	"elom/internal/core/delete"
 	"elom/internal/core/metrics"
+	"elom/internal/core/safety"
 	"elom/internal/core/scan"
 	"elom/locales"
 )
@@ -29,6 +31,9 @@ type analyzeState struct {
 	progress scan.IndexProgress
 	err      string
 	cancel   context.CancelFunc
+	// trashNote says which chosen files were not moved to the Recycle Bin,
+	// and why.
+	trashNote string
 
 	// view is the right side's tab: the map, or the largest files.
 	view int
@@ -341,6 +346,9 @@ func (a *App) analyzeLargest(c *Context, pal palette) {
 				}
 			}
 		})
+		if st.trashNote != "" {
+			Text(c, st.trashNote).FontSize(sizeMeta).TextColor(appTheme.Warning)
+		}
 		Table(c, &st.table, []TableColumn{
 			{Title: "", Width: 28, Fixed: true},
 			{Title: "NAME", Width: 0, Fixed: true},
@@ -467,16 +475,72 @@ func (a *App) chosenPaths() []string {
 	return paths
 }
 
-func (a *App) trashPaths(paths []string) {
-	if len(paths) == 0 {
+// splitTrashable separates the paths the deletion guard accepts from those it
+// refuses, and returns the first refusal's reason. Analyze maps any folder,
+// but the guard only lets app data and caches go, so the user must be told
+// before a dialog promises a move that cannot happen.
+func splitTrashable(guard *safety.Guard, paths []string) (ok []string, refused int, reason string) {
+	for _, path := range paths {
+		err := guard.Check(path)
+		if err == nil {
+			ok = append(ok, path)
+			continue
+		}
+		refused++
+		if reason == "" {
+			reason = refusalReason(err)
+		}
+	}
+	return ok, refused, reason
+}
+
+// refusalReason is the guard's short reason, without the path it repeats.
+func refusalReason(err error) string {
+	var refusal *safety.Refusal
+	if errors.As(err, &refusal) {
+		return string(refusal.Reason)
+	}
+	return err.Error()
+}
+
+// trashOutcome summarizes what was not moved, or "" when everything was.
+func trashOutcome(results []delete.Result, refused int, reason string) string {
+	failed := refused
+	for _, r := range results {
+		if r.Err == "" {
+			continue
+		}
+		failed++
+		if reason == "" {
+			reason = r.Err
+		}
+	}
+	if failed == 0 {
+		return ""
+	}
+	return locales.AnalyzeTrashFailed(failed, reason)
+}
+
+func (a *App) trashPaths(chosen []string) {
+	if len(chosen) == 0 {
 		return
+	}
+	a.analyze.trashNote = ""
+	paths, refused, reason := splitTrashable(a.Guard, chosen)
+	if len(paths) == 0 {
+		a.analyze.trashNote = locales.AnalyzeTrashRefused(refused, reason)
+		return
+	}
+	detail := strings.Join(paths, "\n")
+	if refused > 0 {
+		detail += "\n\n" + locales.AnalyzeTrashRefused(refused, reason)
 	}
 	go func() {
 		res, err := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:             a.Win,
 			Type:               mygo.MessageWarning,
 			Message:            locales.AnalyzeConfirm(len(paths)),
-			Detail:             strings.Join(paths, "\n"),
+			Detail:             detail,
 			Buttons:            []string{locales.CleanCancel(), locales.AnalyzeTrash()},
 			DefaultButton:      1,
 			CancelButton:       0,
@@ -489,6 +553,7 @@ func (a *App) trashPaths(paths []string) {
 		results := a.Clean.DeletePaths(context.Background(), paths)
 		a.Win.Update(func() {
 			a.analyze.busy = false
+			a.analyze.trashNote = trashOutcome(results, refused, reason)
 			ok := 0
 			for _, r := range results {
 				if r.Err == "" {

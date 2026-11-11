@@ -233,18 +233,24 @@ func (a *App) runTask(task maint.Task) {
 				return
 			}
 		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		a.Win.Update(func() {
 			st.running = task.Op
+			st.cancel = cancel
 			st.note = locales.OptimizeRunning(task.Title)
 		})
 
 		var result maint.Result
 		if task.Admin {
-			results, err := a.Elevate(context.Background(), []maint.Op{op})
+			// Cancelling stops the wait; the elevated process cannot be ended
+			// from here and finishes its operation on its own.
+			results, err := a.Elevate(ctx, []maint.Op{op})
 			switch {
-			case errors.Is(err, svc.ErrCancelled):
+			case errors.Is(err, svc.ErrCancelled), errors.Is(err, context.Canceled):
 				a.Win.Update(func() {
 					st.running = ""
+					st.cancel = nil
 					st.note = locales.OptimizeCancelled()
 				})
 				return
@@ -254,11 +260,12 @@ func (a *App) runTask(task maint.Task) {
 				result = results[0]
 			}
 		} else {
-			result = st.run(context.Background(), op)
+			result = st.run(ctx, op)
 		}
 		a.logMaintenance(task, result)
 		a.Win.Update(func() {
 			st.running = ""
+			st.cancel = nil
 			st.note = ""
 			st.results[task.Op] = result
 		})

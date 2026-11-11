@@ -17,6 +17,24 @@ at [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Software: uninstallers whose registered command quotes a path with spaces,
+  such as `"C:\Program Files\X\unins000.exe" /S`, now run; the command reaches
+  `cmd` verbatim instead of with Go's `\"` escaping.
+- Software: leftovers are offered only once the app's uninstall entry has left
+  the registry. An uninstaller that relaunches itself from `%TEMP%` or is
+  cancelled no longer gets a still-installed app's folder offered for deletion;
+  Elom waits up to three minutes, then says the app is still installed and
+  offers Check again.
+- Optimize: an administrator task now waits on the elevated process instead of
+  polling for 10 minutes. Defrag and the system file check can run their full
+  30 minutes, a refused or crashed job is reported at once with its exit code,
+  results are written atomically, and a single task can be cancelled.
+- Analyze: moving files to the Recycle Bin explains which chosen items the
+  deletion guard refuses (personal folders, other drives) and which moves
+  failed, instead of closing the dialog with nothing done.
+- Clean: age-limited rules (such as user temp files older than a week) judge a
+  folder by the newest file inside it, so a folder with a file written today
+  is no longer offered whole.
 - Clean: permanent deletion now confirms with permanent wording and the
   “Delete permanently” button instead of promising a Recycle Bin restore.
 - Software: a failed uninstaller is reported and no longer offers the app's

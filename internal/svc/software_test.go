@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"elom/internal/core/apps"
 )
@@ -37,6 +38,39 @@ func TestListFailsWhenRegistryFails(t *testing.T) {
 	}
 	if _, _, err := sw.List(context.Background()); err == nil {
 		t.Fatal("List hid a registry failure")
+	}
+}
+
+func TestAwaitRemovalWaitsForTheEntryToGo(t *testing.T) {
+	app := apps.App{ID: `HKCU 64\Vendor App`, Name: "Vendor App", Kind: apps.KindRegistry}
+	calls := 0
+	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) {
+		calls++
+		if calls < 3 {
+			return []apps.App{app}, nil
+		}
+		return nil, nil
+	}}
+	if !sw.AwaitRemoval(context.Background(), app, time.Second, time.Millisecond) {
+		t.Fatal("the entry disappeared, but AwaitRemoval said the app is still installed")
+	}
+	if calls != 3 {
+		t.Errorf("registry read %d times, want 3", calls)
+	}
+}
+
+func TestAwaitRemovalGivesUpWhileStillInstalled(t *testing.T) {
+	app := apps.App{ID: `HKCU 64\Vendor App`, Name: "Vendor App", Kind: apps.KindRegistry}
+	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) { return []apps.App{app}, nil }}
+	if sw.AwaitRemoval(context.Background(), app, 20*time.Millisecond, time.Millisecond) {
+		t.Fatal("an app still in the registry was reported as removed")
+	}
+}
+
+func TestAwaitRemovalTreatsUnreadableRegistryAsInstalled(t *testing.T) {
+	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) { return nil, errors.New("access denied") }}
+	if sw.AwaitRemoval(context.Background(), apps.App{ID: "x"}, 0, time.Millisecond) {
+		t.Fatal("an unreadable registry must not count as removed")
 	}
 }
 

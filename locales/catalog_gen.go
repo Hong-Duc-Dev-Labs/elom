@@ -625,6 +625,30 @@ func (msgs Messages) AnalyzeConfirm(count int) string {
 	return Catalog.Format(msgs.locale, "analyzeConfirm", map[string]any{"count": count})
 }
 
+// AnalyzeTrashRefused says "Not moved: {count, number, integer} items are not app data or a cache ({reason}). To delete them anyway, use Explorer."
+// in the language the app shows.
+func AnalyzeTrashRefused(count int, reason string) string {
+	return In(i18n.Locale()).AnalyzeTrashRefused(count, reason)
+}
+
+// AnalyzeTrashRefused says "Not moved: {count, number, integer} items are not app data or a cache ({reason}). To delete them anyway, use Explorer."
+// in the language of msgs.
+func (msgs Messages) AnalyzeTrashRefused(count int, reason string) string {
+	return Catalog.Format(msgs.locale, "analyzeTrashRefused", map[string]any{"count": count, "reason": reason})
+}
+
+// AnalyzeTrashFailed says "Not moved to the Recycle Bin: {count, number, integer} items ({reason})"
+// in the language the app shows.
+func AnalyzeTrashFailed(count int, reason string) string {
+	return In(i18n.Locale()).AnalyzeTrashFailed(count, reason)
+}
+
+// AnalyzeTrashFailed says "Not moved to the Recycle Bin: {count, number, integer} items ({reason})"
+// in the language of msgs.
+func (msgs Messages) AnalyzeTrashFailed(count int, reason string) string {
+	return Catalog.Format(msgs.locale, "analyzeTrashFailed", map[string]any{"count": count, "reason": reason})
+}
+
 // AnalyzeEmpty says "Choose a folder to map what fills the disk."
 // in the language the app shows.
 func AnalyzeEmpty() string { return In(i18n.Locale()).AnalyzeEmpty() }
@@ -959,6 +983,38 @@ func SoftwareUninstallFailed(reason string) string {
 // in the language of msgs.
 func (msgs Messages) SoftwareUninstallFailed(reason string) string {
 	return Catalog.Format(msgs.locale, "softwareUninstallFailed", map[string]any{"reason": reason})
+}
+
+// SoftwareWaitingRemoval says "Waiting for the uninstaller to finish…"
+// in the language the app shows.
+func SoftwareWaitingRemoval() string { return In(i18n.Locale()).SoftwareWaitingRemoval() }
+
+// SoftwareWaitingRemoval says "Waiting for the uninstaller to finish…"
+// in the language of msgs.
+func (msgs Messages) SoftwareWaitingRemoval() string {
+	return Catalog.Format(msgs.locale, "softwareWaitingRemoval", nil)
+}
+
+// SoftwareStillInstalled says "{name} is still installed, so Elom offers none of its files. If its uninstaller is still open, finish it, then check …"
+// in the language the app shows.
+func SoftwareStillInstalled(name string) string {
+	return In(i18n.Locale()).SoftwareStillInstalled(name)
+}
+
+// SoftwareStillInstalled says "{name} is still installed, so Elom offers none of its files. If its uninstaller is still open, finish it, then check …"
+// in the language of msgs.
+func (msgs Messages) SoftwareStillInstalled(name string) string {
+	return Catalog.Format(msgs.locale, "softwareStillInstalled", map[string]any{"name": name})
+}
+
+// SoftwareCheckAgain says "Check again"
+// in the language the app shows.
+func SoftwareCheckAgain() string { return In(i18n.Locale()).SoftwareCheckAgain() }
+
+// SoftwareCheckAgain says "Check again"
+// in the language of msgs.
+func (msgs Messages) SoftwareCheckAgain() string {
+	return Catalog.Format(msgs.locale, "softwareCheckAgain", nil)
 }
 
 // SoftwareNoUninstaller says "This app registered no uninstaller. Remove it from Windows Settings."

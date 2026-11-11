@@ -24,12 +24,16 @@ type softwareState struct {
 	picked int
 	query  string
 
-	running      bool
-	uninstallErr string
-	log          []string
-	leftovers    []apps.Leftover
-	chosen       map[string]bool
-	active       apps.App
+	running bool
+	// waiting is true once the uninstaller exited, while Elom waits for the
+	// app's registry entry to go; stillInstalled is true when it did not.
+	waiting        bool
+	stillInstalled bool
+	uninstallErr   string
+	log            []string
+	leftovers      []apps.Leftover
+	chosen         map[string]bool
+	active         apps.App
 
 	updates      []winget.Upgrade
 	updatesTried bool
@@ -326,6 +330,8 @@ func (a *App) uninstallApp(app apps.App) {
 		}
 		a.Win.Update(func() {
 			a.software.running = true
+			a.software.waiting = false
+			a.software.stillInstalled = false
 			a.software.uninstallErr = ""
 			a.software.log = nil
 			a.software.leftovers = nil
@@ -342,29 +348,52 @@ func (a *App) uninstallApp(app apps.App) {
 				}
 			})
 		})
-		// Only a finished uninstaller can be credited with leftovers: after a
-		// failure the app may still be installed, and offering its files for
-		// deletion would remove a working program.
-		var leftovers []apps.Leftover
-		if runErr == nil {
-			leftovers = a.Software.Leftovers(app)
-		}
-		a.Win.Update(func() {
-			a.software.running = false
-			if runErr != nil {
+		if runErr != nil {
+			a.Win.Update(func() {
+				a.software.running = false
 				a.software.uninstallErr = runErr.Error()
-				a.software.leftovers = nil
-				a.software.chosen = map[string]bool{}
-				return
-			}
-			a.software.leftovers = leftovers
-			for _, l := range leftovers {
-				if l.Confidence == "high" {
-					a.software.chosen[l.Path] = false
-				}
-			}
-		})
+			})
+			return
+		}
+		a.Win.Update(func() { a.software.waiting = true })
+		a.finishUninstall(ctx, app, removalGrace)
 	}()
+}
+
+// removalGrace is how long Elom waits, after the uninstaller exits, for the
+// app's registry entry to go. A vendor dialog left open longer than this ends
+// in the "still installed" notice and its Check again button.
+const removalGrace = 3 * time.Minute
+
+// finishUninstall offers leftovers only once the app's uninstall entry is gone.
+// An uninstaller that exits 0 may have relaunched itself from %TEMP% or been
+// cancelled; offering the files of an app that is still installed would send a
+// working program to the Recycle Bin. It runs off the UI thread.
+func (a *App) finishUninstall(ctx context.Context, app apps.App, grace time.Duration) {
+	removed := a.Software.AwaitRemoval(ctx, app, grace, 2*time.Second)
+	var leftovers []apps.Leftover
+	if removed {
+		leftovers = a.Software.Leftovers(app)
+	}
+	a.Win.Update(func() {
+		a.software.running = false
+		a.software.waiting = false
+		a.software.stillInstalled = !removed
+		a.software.leftovers = leftovers
+		a.software.chosen = map[string]bool{}
+	})
+}
+
+// recheckRemoval looks once more whether the app is gone, after the user
+// finished an uninstaller that outlived the grace period.
+func (a *App) recheckRemoval(app apps.App) {
+	if a.software.running {
+		return
+	}
+	a.software.running = true
+	a.software.waiting = true
+	a.software.stillInstalled = false
+	go a.finishUninstall(context.Background(), app, 0)
 }
 
 func (a *App) trashLeftovers() {

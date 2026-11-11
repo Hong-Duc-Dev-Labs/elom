@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	. "github.com/egoist/mygo/ui"
 
@@ -55,6 +56,15 @@ func TestRoutineMarksTheRunningTask(t *testing.T) {
 	}
 	a.optimize.cancel()
 	close(release)
+	// The routine still logs the task into the test's temporary folder; wait
+	// for it to finish so the folder can be removed.
+	deadline := time.Now().Add(5 * time.Second)
+	for a.optimize.running != "" {
+		if time.Now().After(deadline) {
+			t.Fatal("the routine did not finish after cancel")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 func TestOptimizePageShowsResult(t *testing.T) {
