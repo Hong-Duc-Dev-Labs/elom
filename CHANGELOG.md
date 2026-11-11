@@ -23,8 +23,9 @@ at [Semantic Versioning](https://semver.org/).
 - Software: leftovers are offered only once the app's uninstall entry has left
   the registry. An uninstaller that relaunches itself from `%TEMP%` or is
   cancelled no longer gets a still-installed app's folder offered for deletion;
-  Elom waits up to three minutes, then says the app is still installed and
-  offers Check again.
+  Elom waits up to three minutes (Cancel ends the wait), then says the app is
+  still installed and offers Check again. A key left behind whose install
+  folder is gone counts as removed.
 - Optimize: an administrator task now waits on the elevated process instead of
   polling for 10 minutes. Defrag and the system file check can run their full
   30 minutes, a refused or crashed job is reported at once with its exit code,

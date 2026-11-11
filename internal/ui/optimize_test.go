@@ -5,7 +5,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	. "github.com/egoist/mygo/ui"
 
@@ -29,6 +28,10 @@ func TestOptimizePageRendersTasks(t *testing.T) {
 func TestRoutineMarksTheRunningTask(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "optimize"
+	// The routine goroutine outlives the test and would append its record to
+	// the log inside the test's temporary folder while the folder is being
+	// removed. The test does not read the log, so run without one.
+	a.Log = nil
 	var once sync.Once
 	started := make(chan maint.Op, 1)
 	release := make(chan struct{})
@@ -56,15 +59,6 @@ func TestRoutineMarksTheRunningTask(t *testing.T) {
 	}
 	a.optimize.cancel()
 	close(release)
-	// The routine still logs the task into the test's temporary folder; wait
-	// for it to finish so the folder can be removed.
-	deadline := time.Now().Add(5 * time.Second)
-	for a.optimize.running != "" {
-		if time.Now().After(deadline) {
-			t.Fatal("the routine did not finish after cancel")
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
 }
 
 func TestOptimizePageShowsResult(t *testing.T) {

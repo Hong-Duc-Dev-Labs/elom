@@ -27,7 +27,9 @@ type softwareState struct {
 	running bool
 	// waiting is true once the uninstaller exited, while Elom waits for the
 	// app's registry entry to go; stillInstalled is true when it did not.
-	waiting        bool
+	waiting bool
+	// stopWaiting ends the wait for the registry entry; the user's Cancel.
+	stopWaiting    context.CancelFunc
 	stillInstalled bool
 	uninstallErr   string
 	log            []string
@@ -355,8 +357,13 @@ func (a *App) uninstallApp(app apps.App) {
 			})
 			return
 		}
-		a.Win.Update(func() { a.software.waiting = true })
-		a.finishUninstall(ctx, app, removalGrace)
+		waitCtx, stopWaiting := context.WithCancel(ctx)
+		defer stopWaiting()
+		a.Win.Update(func() {
+			a.software.waiting = true
+			a.software.stopWaiting = stopWaiting
+		})
+		a.finishUninstall(waitCtx, app, removalGrace)
 	}()
 }
 
@@ -378,6 +385,7 @@ func (a *App) finishUninstall(ctx context.Context, app apps.App, grace time.Dura
 	a.Win.Update(func() {
 		a.software.running = false
 		a.software.waiting = false
+		a.software.stopWaiting = nil
 		a.software.stillInstalled = !removed
 		a.software.leftovers = leftovers
 		a.software.chosen = map[string]bool{}

@@ -59,6 +59,44 @@ func TestAwaitRemovalWaitsForTheEntryToGo(t *testing.T) {
 	}
 }
 
+// An uninstaller that removed the program but left its registry key behind
+// must not hold the screen for the whole grace period.
+func TestStillInstalledIgnoresAKeyWhoseInstallFolderIsGone(t *testing.T) {
+	gone := filepath.Join(t.TempDir(), "removed")
+	app := apps.App{ID: `HKCU 64\Vendor App`, Name: "Vendor App", InstallLocation: gone}
+	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) { return []apps.App{app}, nil }}
+	installed, err := sw.StillInstalled(app)
+	if err != nil || installed {
+		t.Fatalf("StillInstalled = %v, %v; want false with the folder gone", installed, err)
+	}
+
+	app.InstallLocation = t.TempDir()
+	installed, err = sw.StillInstalled(app)
+	if err != nil || !installed {
+		t.Fatalf("StillInstalled = %v, %v; want true while the folder exists", installed, err)
+	}
+
+	app.InstallLocation = ""
+	installed, err = sw.StillInstalled(app)
+	if err != nil || !installed {
+		t.Fatalf("StillInstalled = %v, %v; want true when no folder is recorded", installed, err)
+	}
+}
+
+func TestAwaitRemovalStopsWhenCancelled(t *testing.T) {
+	app := apps.App{ID: `HKCU 64\Vendor App`, Name: "Vendor App"}
+	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) { return []apps.App{app}, nil }}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { time.Sleep(20 * time.Millisecond); cancel() }()
+	start := time.Now()
+	if sw.AwaitRemoval(ctx, app, time.Minute, 5*time.Millisecond) {
+		t.Fatal("a cancelled wait reported the app as removed")
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Fatal("cancelling did not end the wait")
+	}
+}
+
 func TestAwaitRemovalGivesUpWhileStillInstalled(t *testing.T) {
 	app := apps.App{ID: `HKCU 64\Vendor App`, Name: "Vendor App", Kind: apps.KindRegistry}
 	sw := &Software{EnumerateRegistry: func() ([]apps.App, error) { return []apps.App{app}, nil }}

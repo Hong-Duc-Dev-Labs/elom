@@ -2,6 +2,9 @@ package svc
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -69,9 +72,18 @@ func (s *Software) StillInstalled(app apps.App) (bool, error) {
 		return false, err
 	}
 	for _, other := range list {
-		if other.ID == app.ID {
-			return true, nil
+		if other.ID != app.ID {
+			continue
 		}
+		// Some uninstallers remove the program and leave their registry key
+		// behind. When the key names an install folder and that folder is
+		// gone, the app is gone too.
+		if app.InstallLocation != "" {
+			if _, err := os.Stat(app.InstallLocation); errors.Is(err, fs.ErrNotExist) {
+				return false, nil
+			}
+		}
+		return true, nil
 	}
 	return false, nil
 }

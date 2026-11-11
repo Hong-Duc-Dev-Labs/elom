@@ -163,6 +163,9 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 					label = locales.SoftwareWaitingRemoval()
 				}
 				Text(c, label).FontSize(12.5).TextColor(appTheme.TextMuted)
+				if st.waiting && st.stopWaiting != nil && ghostPill(c, locales.CleanCancel()).Clicked() {
+					st.stopWaiting()
+				}
 			})
 			for _, line := range tail(st.log, 4) {
 				Text(c, trim(line, 110)).FontSize(11).TextColor(quietText()).NoWrap()
