@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
 	. "github.com/egoist/mygo/ui"
 
+	"elom/internal/core/delete"
+	"elom/internal/core/safety"
 	"elom/internal/core/scan"
 )
 
@@ -149,5 +152,50 @@ func TestAnalyzeChosenSelection(t *testing.T) {
 	}
 	if paths := a.chosenPaths(); len(paths) != 1 || paths[0] != `C:\Users\ada\big\one.bin` {
 		t.Errorf("chosenPaths = %v", paths)
+	}
+}
+
+func TestSplitTrashableRefusesOutsideTheGuard(t *testing.T) {
+	root := t.TempDir()
+	inside := filepath.Join(root, "cache", "big.bin")
+	outside := filepath.Join(t.TempDir(), "Downloads", "movie.mkv")
+	guard := safety.ForRoots(root)
+
+	ok, refused, reason := splitTrashable(guard, []string{inside, outside})
+	if len(ok) != 1 || ok[0] != inside {
+		t.Fatalf("ok = %v, want only %s", ok, inside)
+	}
+	if refused != 1 {
+		t.Fatalf("refused = %d, want 1", refused)
+	}
+	if reason != string(safety.ReasonOutsideRoot) {
+		t.Fatalf("reason = %q, want the guard's short reason", reason)
+	}
+}
+
+func TestTrashPathsExplainsARefusalWithoutADialog(t *testing.T) {
+	a := newTestApp(t)
+	a.Guard = safety.ForRoots(t.TempDir())
+	a.trashPaths([]string{filepath.Join(t.TempDir(), "movie.mkv")})
+	if !strings.Contains(a.analyze.trashNote, "not app data or a cache") {
+		t.Fatalf("trashNote = %q, want the refusal explained", a.analyze.trashNote)
+	}
+}
+
+func TestTrashOutcomeCountsRefusedAndFailed(t *testing.T) {
+	results := []delete.Result{
+		{Path: "a"},
+		{Path: "b", Err: "the file is in use"},
+	}
+	if got := trashOutcome(results[:1], 0, ""); got != "" {
+		t.Fatalf("all moved, but outcome = %q", got)
+	}
+	got := trashOutcome(results, 1, "outside allowed folders")
+	if !strings.Contains(got, "Not moved to the Recycle Bin: 2 items") || !strings.Contains(got, "outside allowed folders") {
+		t.Fatalf("outcome = %q", got)
+	}
+	got = trashOutcome(results, 0, "")
+	if !strings.Contains(got, "Not moved to the Recycle Bin: 1 items") || !strings.Contains(got, "in use") {
+		t.Fatalf("outcome = %q", got)
 	}
 }

@@ -2,7 +2,11 @@ package svc
 
 import (
 	"context"
+	"errors"
+	"io/fs"
+	"os"
 	"path/filepath"
+	"time"
 
 	"elom/internal/core/apps"
 	"elom/internal/core/scan"
@@ -54,6 +58,57 @@ func (s *Software) List(ctx context.Context) ([]apps.App, []string, error) {
 // Uninstall runs the app's own uninstaller, streaming its output.
 func (s *Software) Uninstall(ctx context.Context, app apps.App, onLine func(string)) error {
 	return apps.RunUninstall(ctx, app.UninstallCommand(), onLine)
+}
+
+// StillInstalled reports whether the app's uninstall entry is still in the
+// registry.
+func (s *Software) StillInstalled(app apps.App) (bool, error) {
+	registry := s.EnumerateRegistry
+	if registry == nil {
+		registry = apps.Enumerate
+	}
+	list, err := registry()
+	if err != nil {
+		return false, err
+	}
+	for _, other := range list {
+		if other.ID != app.ID {
+			continue
+		}
+		// Some uninstallers remove the program and leave their registry key
+		// behind. When the key names an install folder and that folder is
+		// gone, the app is gone too.
+		if app.InstallLocation != "" {
+			if _, err := os.Stat(app.InstallLocation); errors.Is(err, fs.ErrNotExist) {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	return false, nil
+}
+
+// AwaitRemoval waits until the app's uninstall entry is gone, checking every
+// interval for at most grace. The uninstaller exiting proves nothing: many
+// copy themselves to %TEMP%, relaunch and exit at once, and the copy may
+// still be running or may have been cancelled. It reports whether the app is
+// gone; an unreadable registry counts as not gone.
+func (s *Software) AwaitRemoval(ctx context.Context, app apps.App, grace, interval time.Duration) bool {
+	deadline := time.Now().Add(grace)
+	for {
+		installed, err := s.StillInstalled(app)
+		if err == nil && !installed {
+			return true
+		}
+		if !time.Now().Before(deadline) {
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(interval):
+		}
+	}
 }
 
 // Leftovers returns the folders that probably belong to the app, with their

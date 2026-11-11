@@ -159,13 +159,21 @@ func measure(guard *safety.Guard, whitelist []string, rule rules.Rule, path stri
 		return c, false
 	}
 	c.Modified = info.ModTime()
-	if rule.MinAgeDays > 0 && now.Sub(info.ModTime()) < time.Duration(rule.MinAgeDays)*24*time.Hour {
-		return c, false
-	}
 	if info.IsDir() {
-		c.Bytes, c.Files, c.Modified = dirSize(path, now)
+		var newest time.Time
+		c.Bytes, c.Files, newest = dirSize(path, now)
+		// A folder is as new as the newest thing in it. Its own time changes
+		// only when an entry directly inside is added or removed, so a file
+		// rewritten today deep inside an old folder would otherwise pass a
+		// "older than a week" rule and be deleted with the folder.
+		if newest.After(c.Modified) {
+			c.Modified = newest
+		}
 	} else {
 		c.Bytes, c.Files = info.Size(), 1
+	}
+	if rule.MinAgeDays > 0 && now.Sub(c.Modified) < time.Duration(rule.MinAgeDays)*24*time.Hour {
+		return c, false
 	}
 	if c.Bytes == 0 {
 		return c, false

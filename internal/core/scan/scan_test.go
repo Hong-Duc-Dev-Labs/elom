@@ -97,6 +97,47 @@ func TestRunAgeFilter(t *testing.T) {
 	}
 }
 
+// An old folder with a file written today inside it is not "older than a
+// week": the folder's own time does not change when a nested file does.
+func TestRunAgeFilterLooksInsideFolders(t *testing.T) {
+	root := t.TempDir()
+	old := time.Now().Add(-30 * 24 * time.Hour)
+	app := filepath.Join(root, "temp", "app")
+	nested := filepath.Join(app, "session")
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(app, "stale.log")
+	fresh := filepath.Join(nested, "in-use.db")
+	for _, file := range []string{stale, fresh} {
+		if err := os.WriteFile(file, make([]byte, 64), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, path := range []string{stale, nested, app} {
+		if err := os.Chtimes(path, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog := []rules.Rule{{
+		ID: "user-temp", Category: "system-temp",
+		Paths:      []string{filepath.Join(root, "temp", "*")},
+		MinAgeDays: 7,
+	}}
+	got := Run(context.Background(), safety.ForRoots(root), catalog, Options{}, nil)
+	if len(got) != 0 {
+		t.Fatalf("a folder holding a file written today passed a 7-day rule: %+v", got)
+	}
+
+	if err := os.Chtimes(fresh, old, old); err != nil {
+		t.Fatal(err)
+	}
+	got = Run(context.Background(), safety.ForRoots(root), catalog, Options{}, nil)
+	if len(got) != 1 || got[0].Bytes != 128 {
+		t.Fatalf("an entirely old folder was not offered: %+v", got)
+	}
+}
+
 func TestRunRefusesOutsideRoot(t *testing.T) {
 	root := fixture(t)
 	guard := safety.ForRoots(root)

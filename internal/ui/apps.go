@@ -158,7 +158,14 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 		cardWith(c, 6, func() {
 			Row(c).Gap(10).AlignItems(Center).Children(func() {
 				Spinner(c)
-				Text(c, locales.SoftwareUninstalling()).FontSize(12.5).TextColor(appTheme.TextMuted)
+				label := locales.SoftwareUninstalling()
+				if st.waiting {
+					label = locales.SoftwareWaitingRemoval()
+				}
+				Text(c, label).FontSize(12.5).TextColor(appTheme.TextMuted)
+				if st.waiting && st.stopWaiting != nil && ghostPill(c, locales.CleanCancel()).Clicked() {
+					st.stopWaiting()
+				}
 			})
 			for _, line := range tail(st.log, 4) {
 				Text(c, trim(line, 110)).FontSize(11).TextColor(quietText()).NoWrap()
@@ -169,6 +176,18 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 		cardWith(c, 4, func() {
 			Text(c, locales.SoftwareUninstallFailed(st.uninstallErr)).
 				FontSize(sizeMeta).TextColor(appTheme.Danger)
+		})
+	}
+	if st.stillInstalled && !st.running {
+		active := st.active
+		cardWith(c, 6, func() {
+			Row(c).FillWidth().Gap(10).AlignItems(Center).Children(func() {
+				Text(c, locales.SoftwareStillInstalled(active.Name)).
+					FontSize(sizeMeta).TextColor(appTheme.Warning).Grow(1)
+				if ghostPill(c, locales.SoftwareCheckAgain()).Clicked() {
+					a.recheckRemoval(active)
+				}
+			})
 		})
 	}
 	if len(st.leftovers) > 0 {

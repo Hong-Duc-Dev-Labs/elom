@@ -28,6 +28,10 @@ func TestOptimizePageRendersTasks(t *testing.T) {
 func TestRoutineMarksTheRunningTask(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "optimize"
+	// The routine goroutine outlives the test and would append its record to
+	// the log inside the test's temporary folder while the folder is being
+	// removed. The test does not read the log, so run without one.
+	a.Log = nil
 	var once sync.Once
 	started := make(chan maint.Op, 1)
 	release := make(chan struct{})
