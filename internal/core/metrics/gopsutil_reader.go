@@ -77,6 +77,10 @@ func (g *GopsutilReader) Read(ctx context.Context) (Raw, error) {
 		raw.MemUsed = vm.Used
 		raw.MemTotal = vm.Total
 	}
+	if sw, err := mem.SwapMemoryWithContext(ctx); err == nil {
+		raw.SwapUsed = sw.Used
+		raw.SwapTotal = sw.Total
+	}
 	if counters, err := disk.IOCountersWithContext(ctx); err == nil {
 		for _, c := range counters {
 			raw.DiskRead += c.ReadBytes

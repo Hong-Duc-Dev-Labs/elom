@@ -2408,3 +2408,63 @@ func AppsOrphanedInactive(days int) string { return In(i18n.Locale()).AppsOrphan
 func (msgs Messages) AppsOrphanedInactive(days int) string {
 	return Catalog.Format(msgs.locale, "appsOrphanedInactive", map[string]any{"days": days})
 }
+
+// StatusSwap says "Swap {used} / {total}"
+// in the language the app shows.
+func StatusSwap(used string, total string) string { return In(i18n.Locale()).StatusSwap(used, total) }
+
+// StatusSwap says "Swap {used} / {total}"
+// in the language of msgs.
+func (msgs Messages) StatusSwap(used string, total string) string {
+	return Catalog.Format(msgs.locale, "statusSwap", map[string]any{"used": used, "total": total})
+}
+
+// StatusPause says "Pause"
+// in the language the app shows.
+func StatusPause() string { return In(i18n.Locale()).StatusPause() }
+
+// StatusPause says "Pause"
+// in the language of msgs.
+func (msgs Messages) StatusPause() string {
+	return Catalog.Format(msgs.locale, "statusPause", nil)
+}
+
+// StatusResume says "Resume"
+// in the language the app shows.
+func StatusResume() string { return In(i18n.Locale()).StatusResume() }
+
+// StatusResume says "Resume"
+// in the language of msgs.
+func (msgs Messages) StatusResume() string {
+	return Catalog.Format(msgs.locale, "statusResume", nil)
+}
+
+// StatusPaused says "Paused"
+// in the language the app shows.
+func StatusPaused() string { return In(i18n.Locale()).StatusPaused() }
+
+// StatusPaused says "Paused"
+// in the language of msgs.
+func (msgs Messages) StatusPaused() string {
+	return Catalog.Format(msgs.locale, "statusPaused", nil)
+}
+
+// StatusSortCpu says "CPU"
+// in the language the app shows.
+func StatusSortCpu() string { return In(i18n.Locale()).StatusSortCpu() }
+
+// StatusSortCpu says "CPU"
+// in the language of msgs.
+func (msgs Messages) StatusSortCpu() string {
+	return Catalog.Format(msgs.locale, "statusSortCpu", nil)
+}
+
+// StatusSortMem says "Memory"
+// in the language the app shows.
+func StatusSortMem() string { return In(i18n.Locale()).StatusSortMem() }
+
+// StatusSortMem says "Memory"
+// in the language of msgs.
+func (msgs Messages) StatusSortMem() string {
+	return Catalog.Format(msgs.locale, "statusSortMem", nil)
+}

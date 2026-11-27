@@ -234,5 +234,11 @@
   "appsOrphanedScanning": "Đang quét AppData tìm thư mục mồ côi…",
   "appsOrphanedNothing": "Không tìm thấy thư mục AppData mồ côi nào (trên 60 ngày, trên 10 MB).",
   "appsOrphanedTrash": "Chuyển mục đã chọn vào Recycle Bin",
-  "appsOrphanedInactive": "không dùng {days, number, integer} ngày"
+  "appsOrphanedInactive": "không dùng {days, number, integer} ngày",
+  "statusSwap": "Pagefile {used} / {total}",
+  "statusPause": "Tạm dừng",
+  "statusResume": "Tiếp tục",
+  "statusPaused": "Đã tạm dừng",
+  "statusSortCpu": "CPU",
+  "statusSortMem": "RAM"
 }

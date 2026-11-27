@@ -63,8 +63,8 @@ func (f *fakeReader) Read(context.Context) (Raw, error) {
 
 func TestSamplerRatesAndHistory(t *testing.T) {
 	reader := &fakeReader{raws: []Raw{
-		{CPUPercent: 10, MemUsed: 100, MemTotal: 1000, DiskRead: 1000, NetRecv: 500, Processes: []Process{{PID: 1, Name: "a"}}},
-		{CPUPercent: 20, MemUsed: 200, MemTotal: 1000, DiskRead: 3000, NetRecv: 2500, Processes: []Process{{PID: 2, Name: "b"}}},
+		{CPUPercent: 10, MemUsed: 100, MemTotal: 1000, SwapUsed: 25, SwapTotal: 500, DiskRead: 1000, NetRecv: 500, Processes: []Process{{PID: 1, Name: "a"}}},
+		{CPUPercent: 20, MemUsed: 200, MemTotal: 1000, SwapUsed: 50, SwapTotal: 500, DiskRead: 3000, NetRecv: 2500, Processes: []Process{{PID: 2, Name: "b"}}},
 	}}
 	s := NewSampler(reader, time.Second)
 	s.tick(context.Background(), time.Second)
@@ -95,6 +95,9 @@ func TestSamplerRatesAndHistory(t *testing.T) {
 	}
 	if second.Health < 0 || second.Health > 100 {
 		t.Errorf("health = %d", second.Health)
+	}
+	if second.SwapUsed != 50 || second.SwapTotal != 500 {
+		t.Errorf("swap = %d/%d, want 50/500", second.SwapUsed, second.SwapTotal)
 	}
 }
 

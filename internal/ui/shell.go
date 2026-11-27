@@ -55,6 +55,9 @@ type App struct {
 
 	Status        *svc.Status
 	status        metrics.Snapshot
+	statusFrozen  metrics.Snapshot
+	statusPaused  bool
+	procSortByMem bool
 	statusStarted bool
 	statusCancel  context.CancelFunc
 	keepOn        bool

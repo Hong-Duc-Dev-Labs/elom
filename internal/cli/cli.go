@@ -129,6 +129,8 @@ type statusOutput struct {
 	CPU           float64           `json:"cpu"`
 	MemUsed       uint64            `json:"mem_used"`
 	MemTotal      uint64            `json:"mem_total"`
+	SwapUsed      uint64            `json:"swap_used"`
+	SwapTotal     uint64            `json:"swap_total"`
 	DiskReadBps   float64           `json:"disk_read_bps"`
 	DiskWriteBps  float64           `json:"disk_write_bps"`
 	NetRecvBps    float64           `json:"net_recv_bps"`
@@ -181,6 +183,8 @@ func runStatus(ctx context.Context, args []string, stdout, stderr io.Writer, dep
 			CPU:       raw.CPUPercent,
 			MemUsed:   raw.MemUsed,
 			MemTotal:  raw.MemTotal,
+			SwapUsed:  raw.SwapUsed,
+			SwapTotal: raw.SwapTotal,
 			Uptime:    raw.Uptime,
 			Processes: raw.Processes,
 			SysFree:   raw.SysFree,
@@ -218,6 +222,8 @@ func runStatus(ctx context.Context, args []string, stdout, stderr io.Writer, dep
 		CPU:           snap.CPU,
 		MemUsed:       snap.MemUsed,
 		MemTotal:      snap.MemTotal,
+		SwapUsed:      snap.SwapUsed,
+		SwapTotal:     snap.SwapTotal,
 		DiskReadBps:   snap.DiskRead,
 		DiskWriteBps:  snap.DiskWrite,
 		NetRecvBps:    snap.NetRecv,

@@ -234,5 +234,11 @@
   "appsOrphanedScanning": "Scanning AppData for orphaned folders…",
   "appsOrphanedNothing": "No orphaned AppData folders (60+ days, 10+ MB) were found.",
   "appsOrphanedTrash": "Move selected to Recycle Bin",
-  "appsOrphanedInactive": "inactive {days, number, integer}d"
+  "appsOrphanedInactive": "inactive {days, number, integer}d",
+  "statusSwap": "Swap {used} / {total}",
+  "statusPause": "Pause",
+  "statusResume": "Resume",
+  "statusPaused": "Paused",
+  "statusSortCpu": "CPU",
+  "statusSortMem": "Memory"
 }

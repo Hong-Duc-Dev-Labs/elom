@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -56,11 +57,50 @@ func (a *App) setKeepScreenOn(on bool) {
 	}
 }
 
+// displayedStatus returns the frozen snapshot while paused, or the latest
+// live reading otherwise. The background sampler keeps running while paused so
+// CPU delta counters and sparkline history never break.
+func (a *App) displayedStatus() metrics.Snapshot {
+	if a.statusPaused && !a.statusFrozen.At.IsZero() {
+		return a.statusFrozen
+	}
+	return a.status
+}
+
+// toggleStatusPause freezes or resumes the Status view without stopping the
+// background sampler.
+func (a *App) toggleStatusPause() {
+	if a.statusPaused {
+		a.statusPaused = false
+		return
+	}
+	a.statusFrozen = a.status
+	a.statusPaused = true
+}
+
+// sortedProcesses returns a sorted copy of procs ordered by CPU or Memory.
+func sortedProcesses(procs []metrics.Process, byMem bool) []metrics.Process {
+	out := append([]metrics.Process(nil), procs...)
+	sort.SliceStable(out, func(i, j int) bool {
+		if byMem {
+			if out[i].Memory != out[j].Memory {
+				return out[i].Memory > out[j].Memory
+			}
+			return out[i].CPU > out[j].CPU
+		}
+		if out[i].CPU != out[j].CPU {
+			return out[i].CPU > out[j].CPU
+		}
+		return out[i].Memory > out[j].Memory
+	})
+	return out
+}
+
 // statusPage is Mole's grid of live tiles, four across, over the process
 // table: health and the machine's facts first, then each resource with its
 // number, its little chart and one line of detail.
 func (a *App) statusPage(c *Context, pal palette) {
-	snap := a.status
+	snap := a.displayedStatus()
 
 	if snap.At.IsZero() {
 		Row(c).Gap(10).AlignItems(Center).Padding(16, 4).Children(func() {
@@ -102,7 +142,11 @@ func (a *App) statusPage(c *Context, pal palette) {
 			tile(c, iconMemory, Hex("#e3c27a"), locales.StatusMemory(), chip, func() {
 				bigNumber(c, fmt.Sprintf("%.0f", mem), "%")
 				bar(c, float32(mem/100), Hex("#d8c48f"), 14)
-				hintText(c, fmt.Sprintf("%s / %s", humanBytes(int64(snap.MemUsed)), humanBytes(int64(snap.MemTotal))))
+				detail := fmt.Sprintf("%s / %s", humanBytes(int64(snap.MemUsed)), humanBytes(int64(snap.MemTotal)))
+				if snap.SwapTotal > 0 {
+					detail += " · " + locales.StatusSwap(humanBytes(int64(snap.SwapUsed)), humanBytes(int64(snap.SwapTotal)))
+				}
+				hintText(c, detail)
 			})
 		},
 		func() {
@@ -174,7 +218,7 @@ func (a *App) statusPage(c *Context, pal palette) {
 		})
 	}
 
-	a.processTable(c, pal)
+	a.processTable(c, pal, snap)
 }
 
 // tile is one of the Status grid's cards: a colored glyph and label in
@@ -345,8 +389,8 @@ func formatUptime(d time.Duration) string {
 	return fmt.Sprintf("%dh %dm", hours, minutes)
 }
 
-func (a *App) processTable(c *Context, pal palette) {
-	rows := a.status.Processes
+func (a *App) processTable(c *Context, pal palette, snap metrics.Snapshot) {
+	rows := sortedProcesses(snap.Processes, a.procSortByMem)
 	a.procTable.Selected = &a.procPicked
 	peak := 1.0
 	for _, proc := range rows {
@@ -354,7 +398,23 @@ func (a *App) processTable(c *Context, pal palette) {
 	}
 	card(c).Children(func() {
 		Column(c).FillWidth().Gap(6).Children(func() {
-			cardHead(c, pal, locales.StatusProcesses(), "")
+			Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
+				Box(c).Size(6, 6).Radius(3).Background(pal.glow)
+				capsLabel(c, locales.StatusProcesses(), fgSecondary())
+				if a.statusPaused {
+					pillTag(c, locales.StatusPaused(), appTheme.Warning)
+				}
+				Spacer(c)
+				sortLink(c, locales.StatusSortCpu(), !a.procSortByMem, func() { a.procSortByMem = false })
+				sortLink(c, locales.StatusSortMem(), a.procSortByMem, func() { a.procSortByMem = true })
+				pauseLabel := locales.StatusPause()
+				if a.statusPaused {
+					pauseLabel = locales.StatusResume()
+				}
+				if ghostPill(c, pauseLabel).Clicked() {
+					a.toggleStatusPause()
+				}
+			})
 			if a.statusKillErr != "" {
 				Text(c, a.statusKillErr).FontSize(sizeMeta).TextColor(appTheme.Danger)
 			}
