@@ -2534,3 +2534,73 @@ func StartupScheduledTaskNote() string { return In(i18n.Locale()).StartupSchedul
 func (msgs Messages) StartupScheduledTaskNote() string {
 	return Catalog.Format(msgs.locale, "startupScheduledTaskNote", nil)
 }
+
+// LogOpenFolder says "Open folder"
+// in the language the app shows.
+func LogOpenFolder() string { return In(i18n.Locale()).LogOpenFolder() }
+
+// LogOpenFolder says "Open folder"
+// in the language of msgs.
+func (msgs Messages) LogOpenFolder() string {
+	return Catalog.Format(msgs.locale, "logOpenFolder", nil)
+}
+
+// LogTotalReclaimed says "Total reclaimed: {size}"
+// in the language the app shows.
+func LogTotalReclaimed(size string) string { return In(i18n.Locale()).LogTotalReclaimed(size) }
+
+// LogTotalReclaimed says "Total reclaimed: {size}"
+// in the language of msgs.
+func (msgs Messages) LogTotalReclaimed(size string) string {
+	return Catalog.Format(msgs.locale, "logTotalReclaimed", map[string]any{"size": size})
+}
+
+// LogFilterAll says "All"
+// in the language the app shows.
+func LogFilterAll() string { return In(i18n.Locale()).LogFilterAll() }
+
+// LogFilterAll says "All"
+// in the language of msgs.
+func (msgs Messages) LogFilterAll() string {
+	return Catalog.Format(msgs.locale, "logFilterAll", nil)
+}
+
+// LogFilterClean says "Clean"
+// in the language the app shows.
+func LogFilterClean() string { return In(i18n.Locale()).LogFilterClean() }
+
+// LogFilterClean says "Clean"
+// in the language of msgs.
+func (msgs Messages) LogFilterClean() string {
+	return Catalog.Format(msgs.locale, "logFilterClean", nil)
+}
+
+// LogFilterOptimize says "Optimize"
+// in the language the app shows.
+func LogFilterOptimize() string { return In(i18n.Locale()).LogFilterOptimize() }
+
+// LogFilterOptimize says "Optimize"
+// in the language of msgs.
+func (msgs Messages) LogFilterOptimize() string {
+	return Catalog.Format(msgs.locale, "logFilterOptimize", nil)
+}
+
+// LogFilterUninstall says "Uninstall"
+// in the language the app shows.
+func LogFilterUninstall() string { return In(i18n.Locale()).LogFilterUninstall() }
+
+// LogFilterUninstall says "Uninstall"
+// in the language of msgs.
+func (msgs Messages) LogFilterUninstall() string {
+	return Catalog.Format(msgs.locale, "logFilterUninstall", nil)
+}
+
+// LogFilterEmpty says "No matching operations."
+// in the language the app shows.
+func LogFilterEmpty() string { return In(i18n.Locale()).LogFilterEmpty() }
+
+// LogFilterEmpty says "No matching operations."
+// in the language of msgs.
+func (msgs Messages) LogFilterEmpty() string {
+	return Catalog.Format(msgs.locale, "logFilterEmpty", nil)
+}

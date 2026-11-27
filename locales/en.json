@@ -246,5 +246,12 @@
   "softwareUpdateAllDone": "{ok, number, integer} updated, {failed, number, integer} failed",
   "softwareUpdateAllCancelled": "Update cancelled ({ok, number, integer} updated)",
   "startupSourceScheduledTask": "Scheduled Task",
-  "startupScheduledTaskNote": "Read-only audit — manage in Task Scheduler."
+  "startupScheduledTaskNote": "Read-only audit — manage in Task Scheduler.",
+  "logOpenFolder": "Open folder",
+  "logTotalReclaimed": "Total reclaimed: {size}",
+  "logFilterAll": "All",
+  "logFilterClean": "Clean",
+  "logFilterOptimize": "Optimize",
+  "logFilterUninstall": "Uninstall",
+  "logFilterEmpty": "No matching operations."
 }

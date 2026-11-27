@@ -366,19 +366,8 @@ func runHistory(args []string, stdout, stderr io.Writer, deps Deps) error {
 		return err
 	}
 
-	filter := strings.ToLower(strings.TrimSpace(*opFilter))
-	var filtered []oplog.Record
-	var reclaimed int64
-	for _, r := range records {
-		if filter != "" && !strings.EqualFold(r.Op, filter) {
-			continue
-		}
-		filtered = append(filtered, r)
-		if r.Result == oplog.ResultTrashed || r.Result == oplog.ResultPermanent {
-			reclaimed += r.Bytes
-		}
-	}
-	total := len(filtered)
+	filtered := oplog.Filter(records, *opFilter)
+	summary := oplog.Summarize(filtered)
 	if *limit > 0 && len(filtered) > *limit {
 		filtered = filtered[len(filtered)-*limit:]
 	}
@@ -388,8 +377,8 @@ func runHistory(args []string, stdout, stderr io.Writer, deps Deps) error {
 
 	out := historyOutput{
 		Path:           logPath,
-		TotalRecords:   total,
-		ReclaimedBytes: reclaimed,
+		TotalRecords:   summary.TotalRecords,
+		ReclaimedBytes: summary.ReclaimedBytes,
 		Records:        filtered,
 	}
 	if *asJSON {
