@@ -23,6 +23,11 @@ type procSample struct {
 	at      time.Time
 }
 
+type cachedUser struct {
+	created int64
+	user    string
+}
+
 type rawProcSample struct {
 	pid     int32
 	name    string
@@ -35,33 +40,56 @@ type rawProcSample struct {
 }
 
 // GopsutilReader reads the machine through gopsutil, which needs no cgo on
-// Windows. It refreshes the process list on procEvery (2s), computes per-process
-// CPU deltas guarded by CreateTime to prevent PID-reuse artifacts, and resolves
-// usernames only for the topN processes displayed.
+// Windows. It refreshes the process list on procEvery (3s), caches slow-changing
+// metrics (swap, drives, battery) on longer intervals, computes per-process CPU
+// deltas guarded by CreateTime to prevent PID-reuse artifacts, and caches
+// resolved usernames for the topN processes displayed.
 type GopsutilReader struct {
 	prevSamples map[int32]procSample
+	userCache   map[int32]cachedUser
 	cachedProcs []Process
 	procsAt     time.Time
 	procEvery   time.Duration
 	topN        int
+
+	cachedSwapUsed  uint64
+	cachedSwapTotal uint64
+	swapAt          time.Time
+	swapEvery       time.Duration
+
+	cachedDrives   []Drive
+	cachedSysFree  uint64
+	cachedSysTotal uint64
+	drivesAt       time.Time
+	drivesEvery    time.Duration
+
+	cachedBattery *Battery
+	batteryAt     time.Time
+	batteryEvery  time.Duration
 
 	systemOnce sync.Once
 	system     System
 }
 
 // NewGopsutilReader returns a reader that refreshes the process table every
-// two seconds and keeps its top 40 by CPU.
+// three seconds, caches slow-changing metrics (swap, drives, battery), and
+// keeps the top 40 processes by CPU.
 func NewGopsutilReader() *GopsutilReader {
 	return &GopsutilReader{
-		prevSamples: map[int32]procSample{},
-		procEvery:   2 * time.Second,
-		topN:        40,
+		prevSamples:  map[int32]procSample{},
+		userCache:    map[int32]cachedUser{},
+		procEvery:    3 * time.Second,
+		swapEvery:    5 * time.Second,
+		drivesEvery:  5 * time.Second,
+		batteryEvery: 10 * time.Second,
+		topN:         40,
 	}
 }
 
 // Read implements Reader.
 func (g *GopsutilReader) Read(ctx context.Context) (Raw, error) {
 	var raw Raw
+	now := time.Now()
 	// One per-core read: the percentages are since the last call, so a
 	// second aggregate call would see no time at all. The overall figure is
 	// their mean, which is how Windows reports it.
@@ -77,10 +105,15 @@ func (g *GopsutilReader) Read(ctx context.Context) (Raw, error) {
 		raw.MemUsed = vm.Used
 		raw.MemTotal = vm.Total
 	}
-	if sw, err := mem.SwapMemoryWithContext(ctx); err == nil {
-		raw.SwapUsed = sw.Used
-		raw.SwapTotal = sw.Total
+	if g.swapAt.IsZero() || now.Sub(g.swapAt) >= g.swapEvery {
+		if sw, err := mem.SwapMemoryWithContext(ctx); err == nil {
+			g.cachedSwapUsed = sw.Used
+			g.cachedSwapTotal = sw.Total
+			g.swapAt = now
+		}
 	}
+	raw.SwapUsed = g.cachedSwapUsed
+	raw.SwapTotal = g.cachedSwapTotal
 	if counters, err := disk.IOCountersWithContext(ctx); err == nil {
 		for _, c := range counters {
 			raw.DiskRead += c.ReadBytes
@@ -94,22 +127,36 @@ func (g *GopsutilReader) Read(ctx context.Context) (Raw, error) {
 	if uptime, err := host.UptimeWithContext(ctx); err == nil {
 		raw.Uptime = time.Duration(uptime) * time.Second
 	}
-	raw.Drives = readDrives(ctx)
-	sysDrive := strings.ToUpper(strings.TrimRight(systemDrive(), `\`))
-	for _, d := range raw.Drives {
-		if strings.EqualFold(strings.TrimRight(d.Mount, `\`), sysDrive) {
-			raw.SysFree = d.Free
-			raw.SysTotal = d.Total
-			break
+	if g.drivesAt.IsZero() || now.Sub(g.drivesAt) >= g.drivesEvery {
+		drives := readDrives(ctx)
+		var sysFree, sysTotal uint64
+		sysDrive := strings.ToUpper(strings.TrimRight(systemDrive(), `\`))
+		for _, d := range drives {
+			if strings.EqualFold(strings.TrimRight(d.Mount, `\`), sysDrive) {
+				sysFree = d.Free
+				sysTotal = d.Total
+				break
+			}
 		}
-	}
-	if raw.SysTotal == 0 {
-		if usage, err := disk.UsageWithContext(ctx, systemDrive()); err == nil {
-			raw.SysFree = usage.Free
-			raw.SysTotal = usage.Total
+		if sysTotal == 0 {
+			if usage, err := disk.UsageWithContext(ctx, systemDrive()); err == nil {
+				sysFree = usage.Free
+				sysTotal = usage.Total
+			}
 		}
+		g.cachedDrives = drives
+		g.cachedSysFree = sysFree
+		g.cachedSysTotal = sysTotal
+		g.drivesAt = now
 	}
-	raw.Battery = readBattery()
+	raw.Drives = g.cachedDrives
+	raw.SysFree = g.cachedSysFree
+	raw.SysTotal = g.cachedSysTotal
+	if g.batteryAt.IsZero() || now.Sub(g.batteryAt) >= g.batteryEvery {
+		g.cachedBattery = readBattery()
+		g.batteryAt = now
+	}
+	raw.Battery = g.cachedBattery
 	g.systemOnce.Do(func() { g.system = readSystem(ctx) })
 	raw.System = g.system
 	raw.Processes = g.processes(ctx)
@@ -205,12 +252,28 @@ func (g *GopsutilReader) processes(ctx context.Context) []Process {
 		handles[p.Pid] = p
 	}
 
+	createdByPID := make(map[int32]int64, len(samples))
+	for _, s := range samples {
+		createdByPID[s.pid] = s.created
+	}
+	// Prune exited or reused PIDs from userCache so it never grows unbounded.
+	for pid, cu := range g.userCache {
+		if cur, ok := createdByPID[pid]; !ok || cur != cu.created {
+			delete(g.userCache, pid)
+		}
+	}
 	lookupUser := func(pid int32) string {
+		created := createdByPID[pid]
+		if cu, ok := g.userCache[pid]; ok && cu.created == created {
+			return cu.user
+		}
 		if h, ok := handles[pid]; ok {
 			if user, err := h.UsernameWithContext(ctx); err == nil {
+				g.userCache[pid] = cachedUser{created: created, user: user}
 				return user
 			}
 		}
+		g.userCache[pid] = cachedUser{created: created}
 		return ""
 	}
 	top, next := computeProcesses(samples, g.prevSamples, g.topN, lookupUser)

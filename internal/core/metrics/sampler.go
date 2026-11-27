@@ -116,7 +116,6 @@ type Sampler struct {
 
 	prev    Raw
 	hasPrev bool
-	proc    map[int32]any // reserved for per-process rate state
 
 	stop     chan struct{}
 	stopOnce sync.Once
@@ -139,7 +138,6 @@ func NewSampler(reader Reader, interval time.Duration) *Sampler {
 			NewRing(HistoryLen), // network up
 		},
 		stop: make(chan struct{}),
-		proc: map[int32]any{},
 	}
 }
 

@@ -3,6 +3,7 @@ package ui
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
@@ -289,7 +290,11 @@ func (a *App) startScan() {
 	a.clean.finished = ""
 	a.clean.cancel = cancel
 	go func() {
+		throttle := newUIThrottle(80 * time.Millisecond)
 		progress := func(p scan.Progress) {
+			if !throttle.allow() {
+				return
+			}
 			a.Win.Update(func() { a.clean.progress = p })
 		}
 		found, err := a.Clean.Scan(ctx, progress)

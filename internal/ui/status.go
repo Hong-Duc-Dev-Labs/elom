@@ -15,25 +15,66 @@ import (
 	"elom/locales"
 )
 
-// StartStatus starts the 1 Hz sampler and keeps the view fed while the app
-// runs, including while only the tray panel shows.
+// StartStatus synchronizes the metrics sampler with the active screen and
+// window visibility. The sampler runs only while the Status screen is visible
+// and the window is neither minimized nor hidden.
 func (a *App) StartStatus() {
-	if a.statusStarted || a.Win == nil {
+	a.syncStatusSampler()
+}
+
+// syncStatusSampler starts the 1 Hz sampler when the Status screen is actively
+// shown and stops it whenever the user switches to another screen or minimizes
+// the window, keeping idle background CPU and syscall usage at zero.
+func (a *App) syncStatusSampler() {
+	shouldRun := a.Win != nil && a.Screen == "status" && !a.winHidden && !a.Win.IsMinimized()
+	if !shouldRun {
+		if a.statusStarted {
+			if a.statusCancel != nil {
+				a.statusCancel()
+				a.statusCancel = nil
+			}
+			a.statusStarted = false
+		}
 		return
+	}
+	if a.statusStarted {
+		return
+	}
+	if a.status.At.IsZero() && a.Status != nil {
+		if snap := a.Status.Snapshot(); !snap.At.IsZero() {
+			a.status = snap
+		}
 	}
 	a.statusStarted = true
 	ctx, cancel := context.WithCancel(context.Background())
 	a.statusCancel = cancel
 	go a.Status.Start(ctx, func(snap metrics.Snapshot) {
-		a.Win.Update(func() { a.status = snap })
+		a.statusMu.Lock()
+		a.statusLive = snap
+		paused := a.statusPaused
+		a.statusMu.Unlock()
+		if paused {
+			return
+		}
+		a.Win.Update(func() {
+			if a.Screen != "status" || a.statusPaused {
+				return
+			}
+			a.status = snap
+		})
 	})
 }
 
-// Stop ends the sampler and releases the screen lock.
+// Stop ends the sampler, icon worker and releases the screen lock.
 func (a *App) Stop() {
 	if a.statusCancel != nil {
 		a.statusCancel()
 		a.statusCancel = nil
+	}
+	a.statusStarted = false
+	if a.software.iconQueue != nil {
+		close(a.software.iconQueue)
+		a.software.iconQueue = nil
 	}
 	a.setKeepScreenOn(false)
 }
@@ -70,12 +111,35 @@ func (a *App) displayedStatus() metrics.Snapshot {
 // toggleStatusPause freezes or resumes the Status view without stopping the
 // background sampler.
 func (a *App) toggleStatusPause() {
+	a.statusMu.Lock()
 	if a.statusPaused {
 		a.statusPaused = false
+		live := a.statusLive
+		a.statusMu.Unlock()
+		if !live.At.IsZero() && live.At.After(a.status.At) {
+			a.status = live
+		}
 		return
 	}
 	a.statusFrozen = a.status
 	a.statusPaused = true
+	a.statusMu.Unlock()
+}
+
+// cachedSortedProcesses memoizes the sorted process table so hover/scroll
+// repaints do not clone and re-sort the slice on every frame.
+func (a *App) cachedSortedProcesses(snap metrics.Snapshot) []metrics.Process {
+	if a.procSorted != nil &&
+		a.procSortedAt.Equal(snap.At) &&
+		a.procSortedByMem == a.procSortByMem &&
+		a.procSortedLen == len(snap.Processes) {
+		return a.procSorted
+	}
+	a.procSorted = sortedProcesses(snap.Processes, a.procSortByMem)
+	a.procSortedAt = snap.At
+	a.procSortedByMem = a.procSortByMem
+	a.procSortedLen = len(snap.Processes)
+	return a.procSorted
 }
 
 // sortedProcesses returns a sorted copy of procs ordered by CPU or Memory.
@@ -390,7 +454,7 @@ func formatUptime(d time.Duration) string {
 }
 
 func (a *App) processTable(c *Context, pal palette, snap metrics.Snapshot) {
-	rows := sortedProcesses(snap.Processes, a.procSortByMem)
+	rows := a.cachedSortedProcesses(snap)
 	a.procTable.Selected = &a.procPicked
 	peak := 1.0
 	for _, proc := range rows {

@@ -7,7 +7,9 @@ package ui
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -22,6 +24,19 @@ import (
 	"elom/locales"
 	"github.com/egoist/mygo/i18n"
 )
+
+type logViewCache struct {
+	path        string
+	size        int64
+	modTime     time.Time
+	checkedAt   time.Time
+	writableAt  time.Time
+	writableErr string
+	readErr     string
+	records     []oplog.Record
+	summary     oplog.Summary
+	loaded      bool
+}
 
 // App is the state the window draws and the services it talks to. The view
 // is a function of it: MyGo builds frames from it on the main thread.
@@ -53,18 +68,26 @@ type App struct {
 	// appsTab is the Apps screen's tab: Uninstall, Updates or Startup.
 	appsTab int
 
-	Status        *svc.Status
-	status        metrics.Snapshot
-	statusFrozen  metrics.Snapshot
-	statusPaused  bool
-	procSortByMem bool
-	statusStarted bool
-	statusCancel  context.CancelFunc
-	keepOn        bool
-	release       func()
-	procTable     ListState
-	procPicked    int
-	statusKillErr string
+	Status          *svc.Status
+	status          metrics.Snapshot
+	statusFrozen    metrics.Snapshot
+	statusPaused    bool
+	statusMu        sync.Mutex
+	statusLive      metrics.Snapshot
+	procSortByMem   bool
+	procSorted      []metrics.Process
+	procSortedAt    time.Time
+	procSortedByMem bool
+	procSortedLen   int
+	statusStarted   bool
+	statusCancel    context.CancelFunc
+	winHidden       bool
+	keepOn          bool
+	release         func()
+	procTable       ListState
+	procPicked      int
+	statusKillErr   string
+	logCache        logViewCache
 
 	// Elevate runs maintenance with administrator rights; tests replace it.
 	Elevate func(context.Context, []maint.Op) ([]maint.Result, error)
@@ -120,6 +143,32 @@ func New(dataDir string, store *settings.Store, log *oplog.Log) *App {
 	return a
 }
 
+// AttachWindow wires the main window's visibility callbacks so background
+// sampling and hero animations pause while minimized or hidden.
+func (a *App) AttachWindow(win *mygo.Window) {
+	a.Win = win
+	if win == nil {
+		return
+	}
+	win.OnMinimize(func() {
+		a.winHidden = true
+		a.syncStatusSampler()
+	})
+	win.OnHide(func() {
+		a.winHidden = true
+		a.syncStatusSampler()
+	})
+	win.OnRestore(func() {
+		a.winHidden = false
+		a.syncStatusSampler()
+	})
+	win.OnShow(func() {
+		a.winHidden = false
+		a.syncStatusSampler()
+	})
+	a.syncStatusSampler()
+}
+
 // update runs fn on the UI thread, or directly when there is no window yet
 // (tests), so state changes never touch a frame from another goroutine.
 func (a *App) update(fn func()) {
@@ -157,12 +206,14 @@ func (a *App) reload() {
 			a.purge.paths = paths
 		}
 	}
+	a.logCache.loaded = false
 }
 
 // View builds the whole window: the tinted background, the floating tabs and
 // the chosen screen.
 func (a *App) View(c *Context) {
 	c.SetTheme(appTheme)
+	planetAnimateEnabled = a.Win == nil || (!a.winHidden && !a.Win.IsMinimized())
 	pal := a.framePalette(c)
 
 	Box(c).Fill().Background(bgBase).Font(fontBody).Draw(func(p *Painter, r Rect) {
@@ -292,6 +343,7 @@ func (a *App) nav(c *Context, pal palette) {
 		})
 		if tabs.List.Changed() && idx >= 0 && idx < len(screens) {
 			a.Screen = screens[idx].ID
+			a.syncStatusSampler()
 		}
 	})
 }
@@ -497,12 +549,13 @@ func (a *App) settingsPage(c *Context, pal palette) {
 						Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
 						return
 					}
+					a.refreshLogCache()
 					Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
 						Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
 							Text(c, a.Log.Path()).Font(fontMono).FontSize(11).TextColor(fgSecondary()).
 								SingleLine().Ellipsis("…").Tooltip(a.Log.Path())
-							if err := a.Log.RequireWritable(); err != nil {
-								Text(c, locales.LogNotWritable(err.Error())).FontSize(sizeCaption).TextColor(appTheme.Danger)
+							if a.logCache.writableErr != "" {
+								Text(c, locales.LogNotWritable(a.logCache.writableErr)).FontSize(sizeCaption).TextColor(appTheme.Danger)
 							} else {
 								Text(c, locales.LogWritable()).FontSize(sizeCaption).TextColor(appTheme.Success)
 							}
@@ -537,16 +590,17 @@ func (a *App) settingsPage(c *Context, pal palette) {
 						Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
 						return
 					}
-					records, err := oplog.Read(a.Log.Path())
-					if err != nil && len(records) == 0 {
-						Text(c, err.Error()).FontSize(sizeCaption).TextColor(appTheme.Danger)
+					a.refreshLogCache()
+					records := a.logCache.records
+					if a.logCache.readErr != "" && len(records) == 0 {
+						Text(c, a.logCache.readErr).FontSize(sizeCaption).TextColor(appTheme.Danger)
 						return
 					}
 					if len(records) == 0 {
 						Text(c, locales.LogEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
 						return
 					}
-					summary := oplog.Summarize(records)
+					summary := a.logCache.summary
 					Row(c).FillWidth().Gap(4).AlignItems(Center).Children(func() {
 						filters := []struct {
 							id    string
@@ -644,4 +698,48 @@ func onOff(v bool) string {
 		return locales.On()
 	}
 	return locales.Off()
+}
+
+// refreshLogCache caches the operation log's writability check and parsed
+// records so Settings frames do not hit disk or unmarshal JSON on every repaint.
+func (a *App) refreshLogCache() {
+	if a.Log == nil {
+		return
+	}
+	path := a.Log.Path()
+	now := time.Now()
+	lc := &a.logCache
+	if lc.loaded && lc.path == path && a.Win != nil && now.Sub(lc.checkedAt) < time.Second {
+		return
+	}
+	lc.checkedAt = now
+	if !lc.loaded || lc.path != path || now.Sub(lc.writableAt) >= 5*time.Second {
+		if err := a.Log.RequireWritable(); err != nil {
+			lc.writableErr = err.Error()
+		} else {
+			lc.writableErr = ""
+		}
+		lc.writableAt = now
+	}
+	info, statErr := os.Stat(path)
+	if lc.loaded && lc.path == path && statErr == nil && info.Size() == lc.size && info.ModTime().Equal(lc.modTime) {
+		return
+	}
+	records, err := oplog.Read(path)
+	lc.path = path
+	lc.records = records
+	lc.summary = oplog.Summarize(records)
+	if err != nil {
+		lc.readErr = err.Error()
+	} else {
+		lc.readErr = ""
+	}
+	if statErr == nil {
+		lc.size = info.Size()
+		lc.modTime = info.ModTime()
+	} else {
+		lc.size = 0
+		lc.modTime = time.Time{}
+	}
+	lc.loaded = true
 }
