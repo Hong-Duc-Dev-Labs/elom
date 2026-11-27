@@ -2408,3 +2408,199 @@ func AppsOrphanedInactive(days int) string { return In(i18n.Locale()).AppsOrphan
 func (msgs Messages) AppsOrphanedInactive(days int) string {
 	return Catalog.Format(msgs.locale, "appsOrphanedInactive", map[string]any{"days": days})
 }
+
+// StatusSwap says "Swap {used} / {total}"
+// in the language the app shows.
+func StatusSwap(used string, total string) string { return In(i18n.Locale()).StatusSwap(used, total) }
+
+// StatusSwap says "Swap {used} / {total}"
+// in the language of msgs.
+func (msgs Messages) StatusSwap(used string, total string) string {
+	return Catalog.Format(msgs.locale, "statusSwap", map[string]any{"used": used, "total": total})
+}
+
+// StatusPause says "Pause"
+// in the language the app shows.
+func StatusPause() string { return In(i18n.Locale()).StatusPause() }
+
+// StatusPause says "Pause"
+// in the language of msgs.
+func (msgs Messages) StatusPause() string {
+	return Catalog.Format(msgs.locale, "statusPause", nil)
+}
+
+// StatusResume says "Resume"
+// in the language the app shows.
+func StatusResume() string { return In(i18n.Locale()).StatusResume() }
+
+// StatusResume says "Resume"
+// in the language of msgs.
+func (msgs Messages) StatusResume() string {
+	return Catalog.Format(msgs.locale, "statusResume", nil)
+}
+
+// StatusPaused says "Paused"
+// in the language the app shows.
+func StatusPaused() string { return In(i18n.Locale()).StatusPaused() }
+
+// StatusPaused says "Paused"
+// in the language of msgs.
+func (msgs Messages) StatusPaused() string {
+	return Catalog.Format(msgs.locale, "statusPaused", nil)
+}
+
+// StatusSortCpu says "CPU"
+// in the language the app shows.
+func StatusSortCpu() string { return In(i18n.Locale()).StatusSortCpu() }
+
+// StatusSortCpu says "CPU"
+// in the language of msgs.
+func (msgs Messages) StatusSortCpu() string {
+	return Catalog.Format(msgs.locale, "statusSortCpu", nil)
+}
+
+// StatusSortMem says "Memory"
+// in the language the app shows.
+func StatusSortMem() string { return In(i18n.Locale()).StatusSortMem() }
+
+// StatusSortMem says "Memory"
+// in the language of msgs.
+func (msgs Messages) StatusSortMem() string {
+	return Catalog.Format(msgs.locale, "statusSortMem", nil)
+}
+
+// SoftwareUpdateAll says "Update all"
+// in the language the app shows.
+func SoftwareUpdateAll() string { return In(i18n.Locale()).SoftwareUpdateAll() }
+
+// SoftwareUpdateAll says "Update all"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAll() string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAll", nil)
+}
+
+// SoftwareUpdatingAll says "Updating {done, number, integer} of {total, number, integer}: {name}…"
+// in the language the app shows.
+func SoftwareUpdatingAll(done int, total int, name string) string {
+	return In(i18n.Locale()).SoftwareUpdatingAll(done, total, name)
+}
+
+// SoftwareUpdatingAll says "Updating {done, number, integer} of {total, number, integer}: {name}…"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdatingAll(done int, total int, name string) string {
+	return Catalog.Format(msgs.locale, "softwareUpdatingAll", map[string]any{"done": done, "total": total, "name": name})
+}
+
+// SoftwareUpdateAllDone says "{ok, number, integer} updated, {failed, number, integer} failed"
+// in the language the app shows.
+func SoftwareUpdateAllDone(ok int, failed int) string {
+	return In(i18n.Locale()).SoftwareUpdateAllDone(ok, failed)
+}
+
+// SoftwareUpdateAllDone says "{ok, number, integer} updated, {failed, number, integer} failed"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAllDone(ok int, failed int) string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAllDone", map[string]any{"ok": ok, "failed": failed})
+}
+
+// SoftwareUpdateAllCancelled says "Update cancelled ({ok, number, integer} updated)"
+// in the language the app shows.
+func SoftwareUpdateAllCancelled(ok int) string {
+	return In(i18n.Locale()).SoftwareUpdateAllCancelled(ok)
+}
+
+// SoftwareUpdateAllCancelled says "Update cancelled ({ok, number, integer} updated)"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAllCancelled(ok int) string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAllCancelled", map[string]any{"ok": ok})
+}
+
+// StartupSourceScheduledTask says "Scheduled Task"
+// in the language the app shows.
+func StartupSourceScheduledTask() string { return In(i18n.Locale()).StartupSourceScheduledTask() }
+
+// StartupSourceScheduledTask says "Scheduled Task"
+// in the language of msgs.
+func (msgs Messages) StartupSourceScheduledTask() string {
+	return Catalog.Format(msgs.locale, "startupSourceScheduledTask", nil)
+}
+
+// StartupScheduledTaskNote says "Read-only audit — manage in Task Scheduler."
+// in the language the app shows.
+func StartupScheduledTaskNote() string { return In(i18n.Locale()).StartupScheduledTaskNote() }
+
+// StartupScheduledTaskNote says "Read-only audit — manage in Task Scheduler."
+// in the language of msgs.
+func (msgs Messages) StartupScheduledTaskNote() string {
+	return Catalog.Format(msgs.locale, "startupScheduledTaskNote", nil)
+}
+
+// LogOpenFolder says "Open folder"
+// in the language the app shows.
+func LogOpenFolder() string { return In(i18n.Locale()).LogOpenFolder() }
+
+// LogOpenFolder says "Open folder"
+// in the language of msgs.
+func (msgs Messages) LogOpenFolder() string {
+	return Catalog.Format(msgs.locale, "logOpenFolder", nil)
+}
+
+// LogTotalReclaimed says "Total reclaimed: {size}"
+// in the language the app shows.
+func LogTotalReclaimed(size string) string { return In(i18n.Locale()).LogTotalReclaimed(size) }
+
+// LogTotalReclaimed says "Total reclaimed: {size}"
+// in the language of msgs.
+func (msgs Messages) LogTotalReclaimed(size string) string {
+	return Catalog.Format(msgs.locale, "logTotalReclaimed", map[string]any{"size": size})
+}
+
+// LogFilterAll says "All"
+// in the language the app shows.
+func LogFilterAll() string { return In(i18n.Locale()).LogFilterAll() }
+
+// LogFilterAll says "All"
+// in the language of msgs.
+func (msgs Messages) LogFilterAll() string {
+	return Catalog.Format(msgs.locale, "logFilterAll", nil)
+}
+
+// LogFilterClean says "Clean"
+// in the language the app shows.
+func LogFilterClean() string { return In(i18n.Locale()).LogFilterClean() }
+
+// LogFilterClean says "Clean"
+// in the language of msgs.
+func (msgs Messages) LogFilterClean() string {
+	return Catalog.Format(msgs.locale, "logFilterClean", nil)
+}
+
+// LogFilterOptimize says "Optimize"
+// in the language the app shows.
+func LogFilterOptimize() string { return In(i18n.Locale()).LogFilterOptimize() }
+
+// LogFilterOptimize says "Optimize"
+// in the language of msgs.
+func (msgs Messages) LogFilterOptimize() string {
+	return Catalog.Format(msgs.locale, "logFilterOptimize", nil)
+}
+
+// LogFilterUninstall says "Uninstall"
+// in the language the app shows.
+func LogFilterUninstall() string { return In(i18n.Locale()).LogFilterUninstall() }
+
+// LogFilterUninstall says "Uninstall"
+// in the language of msgs.
+func (msgs Messages) LogFilterUninstall() string {
+	return Catalog.Format(msgs.locale, "logFilterUninstall", nil)
+}
+
+// LogFilterEmpty says "No matching operations."
+// in the language the app shows.
+func LogFilterEmpty() string { return In(i18n.Locale()).LogFilterEmpty() }
+
+// LogFilterEmpty says "No matching operations."
+// in the language of msgs.
+func (msgs Messages) LogFilterEmpty() string {
+	return Catalog.Format(msgs.locale, "logFilterEmpty", nil)
+}

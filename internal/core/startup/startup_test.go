@@ -1,6 +1,9 @@
 package startup
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestApprovedEnabled(t *testing.T) {
 	cases := []struct {
@@ -34,5 +37,26 @@ func TestApprovedBlob(t *testing.T) {
 		if b != 0 {
 			t.Fatalf("enabled blob has payload: %v", on)
 		}
+	}
+}
+
+func TestParseScheduledTasksCSV(t *testing.T) {
+	raw := strings.Join([]string{
+		`"TaskName","Status","Schedule Type","Task To Run"`,
+		`"\Vendor\HelperSync","Ready","At logon time","C:\Tools\helper.exe --tray"`,
+		`"\Vendor\PausedAgent","Disabled","At log on","C:\Tools\agent.exe"`,
+		`"\Vendor\NightlyBackup","Ready","Daily","C:\Tools\backup.exe"`,
+		`"\Microsoft\Windows\Shell\Indexer","Ready","At logon time","C:\Windows\System32\idx.exe"`,
+	}, "\r\n")
+
+	got := ParseScheduledTasksCSV([]byte(raw))
+	if len(got) != 2 {
+		t.Fatalf("got %d entries, want 2: %+v", len(got), got)
+	}
+	if got[0].Name != "HelperSync" || !got[0].Enabled || got[0].Writable || got[0].Source != SourceScheduledTask {
+		t.Errorf("first entry = %+v", got[0])
+	}
+	if got[1].Name != "PausedAgent" || got[1].Enabled || got[1].Writable {
+		t.Errorf("second entry = %+v", got[1])
 	}
 }

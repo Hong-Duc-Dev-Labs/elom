@@ -7,6 +7,7 @@ import (
 
 	. "github.com/egoist/mygo/ui"
 
+	"elom/internal/core/oplog"
 	"elom/locales"
 )
 
@@ -154,5 +155,35 @@ func TestVietnameseCatalogResolves(t *testing.T) {
 	}
 	if got := locales.In("en").NavClean(); got != "Clean" {
 		t.Errorf("English navClean = %q", got)
+	}
+}
+
+func TestSettingsHistoryFilterAndReclaimedTotal(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "settings"
+	for _, r := range []oplog.Record{
+		{Op: "clean", Path: `C:\cache\browser`, Bytes: 50_000_000, Result: oplog.ResultTrashed},
+		{Op: "dns.flush", Path: "dns.flush", Bytes: 0, Result: oplog.ResultDone},
+		{Op: "uninstall", Path: `C:\Users\me\AppData\Local\OldApp`, Bytes: 10_000_000, Result: oplog.ResultTrashed},
+	} {
+		if err := a.Log.Append(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"Open folder", "Total reclaimed: 60.0 MB", "All", "Clean", "Optimize", "Uninstall", `C:\cache\browser`, "dns.flush"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+
+	// Filtering to optimize hides clean records while keeping the filter UI.
+	a.historyFilter = "optimize"
+	tt = NewTester(a.View, 1180, 760)
+	texts = strings.Join(tt.Texts(), "\n")
+	if !strings.Contains(texts, "dns.flush") || strings.Contains(texts, `C:\cache\browser`) {
+		t.Errorf("optimize filter failed:\n%s", texts)
 	}
 }

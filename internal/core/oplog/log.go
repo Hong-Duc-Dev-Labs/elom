@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -167,4 +168,61 @@ func Read(path string) ([]Record, error) {
 		return out, err
 	}
 	return out, nil
+}
+
+// Summary holds aggregate statistics computed from operation log records.
+type Summary struct {
+	TotalRecords   int            `json:"total_records"`
+	ReclaimedBytes int64          `json:"reclaimed_bytes"`
+	ByCategory     map[string]int `json:"by_category"`
+}
+
+// Category maps a record's Op into a high-level history filter bucket:
+// "clean", "optimize", or "uninstall".
+func Category(r Record) string {
+	op := strings.ToLower(strings.TrimSpace(r.Op))
+	switch {
+	case op == "clean" || op == "purge" || op == "installer" || op == "delete" || op == "trash":
+		return "clean"
+	case op == "uninstall" || strings.HasPrefix(op, "uninstall."):
+		return "uninstall"
+	case op == "optimize" || r.Result == ResultDone || strings.Contains(op, "."):
+		return "optimize"
+	default:
+		return op
+	}
+}
+
+// Filter returns records matching category ("clean", "optimize", "uninstall").
+// An empty category or "all" returns records unchanged.
+func Filter(records []Record, category string) []Record {
+	cat := strings.ToLower(strings.TrimSpace(category))
+	if cat == "" || cat == "all" {
+		return records
+	}
+	var out []Record
+	for _, r := range records {
+		if Category(r) == cat || strings.EqualFold(r.Op, cat) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// Summarize computes total record count, cumulative reclaimed bytes across
+// successful deletions (trashed or permanent), and per-category counts.
+func Summarize(records []Record) Summary {
+	s := Summary{
+		TotalRecords: len(records),
+		ByCategory:   map[string]int{},
+	}
+	for _, r := range records {
+		if cat := Category(r); cat != "" {
+			s.ByCategory[cat]++
+		}
+		if (r.Result == ResultTrashed || r.Result == ResultPermanent) && r.Bytes > 0 {
+			s.ReclaimedBytes += r.Bytes
+		}
+	}
+	return s
 }

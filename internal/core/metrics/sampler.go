@@ -43,6 +43,8 @@ type Raw struct {
 	CPUPercent float64
 	MemUsed    uint64
 	MemTotal   uint64
+	SwapUsed   uint64
+	SwapTotal  uint64
 	DiskRead   uint64
 	DiskWrite  uint64
 	NetRecv    uint64
@@ -82,6 +84,8 @@ type Snapshot struct {
 	CPU        float64
 	MemUsed    uint64
 	MemTotal   uint64
+	SwapUsed   uint64
+	SwapTotal  uint64
 	DiskRead   float64 // bytes per second
 	DiskWrite  float64
 	NetRecv    float64
@@ -220,6 +224,8 @@ func (s *Sampler) tick(ctx context.Context, interval time.Duration) {
 		CPU:        raw.CPUPercent,
 		MemUsed:    raw.MemUsed,
 		MemTotal:   raw.MemTotal,
+		SwapUsed:   raw.SwapUsed,
+		SwapTotal:  raw.SwapTotal,
 		DiskRead:   diskRead,
 		DiskWrite:  diskWrite,
 		NetRecv:    netRecv,

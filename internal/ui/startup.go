@@ -47,6 +47,8 @@ func startupSourceLabel(source string) string {
 		return locales.StartupSourceUserFolder()
 	case "Startup folder (all users)":
 		return locales.StartupSourceAllUsersFolder()
+	case startup.SourceScheduledTask:
+		return locales.StartupSourceScheduledTask()
 	default:
 		return source
 	}
@@ -123,7 +125,11 @@ func (a *App) startupPage(c *Context, pal palette) {
 							state = locales.StartupDisabled()
 						}
 						if !entry.Writable {
-							state = locales.StartupShortcutNote()
+							if entry.Source == startup.SourceScheduledTask {
+								state = locales.StartupScheduledTaskNote()
+							} else {
+								state = locales.StartupShortcutNote()
+							}
 						}
 						Text(c, trim(state, 60)).FontSize(sizeCaption).TextColor(fgMuted()).NoWrap()
 					})

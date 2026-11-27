@@ -27,6 +27,8 @@ go vet ./...
 go test ./... -count=1
 go test ./... -cover -count=1          # 59.5 % total at the time of writing
 go tool mygo build                     # build/windows-amd64/
+.\scripts\release-checksums.ps1        # generate build/windows-amd64/SHA256SUMS
+.\scripts\release-checksums.ps1 -Verify
 go tool mygo i18n check .              # en + vi catalogs agree
 $env:ELOM_GALLERY=1; go test ./internal/ui -run TestGallery -count=1  # visual pass
 ```

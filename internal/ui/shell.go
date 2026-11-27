@@ -55,6 +55,9 @@ type App struct {
 
 	Status        *svc.Status
 	status        metrics.Snapshot
+	statusFrozen  metrics.Snapshot
+	statusPaused  bool
+	procSortByMem bool
 	statusStarted bool
 	statusCancel  context.CancelFunc
 	keepOn        bool
@@ -76,6 +79,7 @@ type App struct {
 	cleanOpenedAt time.Time
 	whitelist     []string
 	newPattern    string
+	historyFilter string
 
 	Settings     settings.Settings
 	SettingsErr  string
@@ -493,13 +497,20 @@ func (a *App) settingsPage(c *Context, pal palette) {
 						Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
 						return
 					}
-					Text(c, a.Log.Path()).Font(fontMono).FontSize(11).TextColor(fgSecondary()).
-						SingleLine().Ellipsis("…").Tooltip(a.Log.Path())
-					if err := a.Log.RequireWritable(); err != nil {
-						Text(c, locales.LogNotWritable(err.Error())).FontSize(sizeCaption).TextColor(appTheme.Danger)
-					} else {
-						Text(c, locales.LogWritable()).FontSize(sizeCaption).TextColor(appTheme.Success)
-					}
+					Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
+						Column(c).Grow(1).Shrink(1).MinWidth(0).Gap(2).Children(func() {
+							Text(c, a.Log.Path()).Font(fontMono).FontSize(11).TextColor(fgSecondary()).
+								SingleLine().Ellipsis("…").Tooltip(a.Log.Path())
+							if err := a.Log.RequireWritable(); err != nil {
+								Text(c, locales.LogNotWritable(err.Error())).FontSize(sizeCaption).TextColor(appTheme.Danger)
+							} else {
+								Text(c, locales.LogWritable()).FontSize(sizeCaption).TextColor(appTheme.Success)
+							}
+						})
+						if ghostPill(c, locales.LogOpenFolder()).Clicked() {
+							mygo.Shell.ShowItemInFolder(a.Log.Path())
+						}
+					})
 				})
 
 				row(locales.CleanScreenButton(), locales.CleanScreenRow(), func() {
@@ -522,6 +533,10 @@ func (a *App) settingsPage(c *Context, pal palette) {
 
 				section(locales.LogRecent())
 				block(func() {
+					if a.Log == nil {
+						Text(c, locales.LogUnavailable()).FontSize(sizeCaption).TextColor(fgMuted())
+						return
+					}
 					records, err := oplog.Read(a.Log.Path())
 					if err != nil && len(records) == 0 {
 						Text(c, err.Error()).FontSize(sizeCaption).TextColor(appTheme.Danger)
@@ -531,11 +546,37 @@ func (a *App) settingsPage(c *Context, pal palette) {
 						Text(c, locales.LogEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
 						return
 					}
-					start := len(records) - 12
+					summary := oplog.Summarize(records)
+					Row(c).FillWidth().Gap(4).AlignItems(Center).Children(func() {
+						filters := []struct {
+							id    string
+							label string
+						}{
+							{"", locales.LogFilterAll()},
+							{"clean", locales.LogFilterClean()},
+							{"optimize", locales.LogFilterOptimize()},
+							{"uninstall", locales.LogFilterUninstall()},
+						}
+						for _, f := range filters {
+							id := f.id
+							sortLink(c, f.label, a.historyFilter == id, func() { a.historyFilter = id })
+						}
+						Spacer(c)
+						if summary.ReclaimedBytes > 0 {
+							Text(c, locales.LogTotalReclaimed(humanBytes(summary.ReclaimedBytes))).
+								Font(fontMono).FontSize(sizeCaption).TextColor(appTheme.Success).NoWrap()
+						}
+					})
+					shown := oplog.Filter(records, a.historyFilter)
+					if len(shown) == 0 {
+						Text(c, locales.LogFilterEmpty()).FontSize(sizeCaption).TextColor(fgMuted())
+						return
+					}
+					start := len(shown) - 10
 					if start < 0 {
 						start = 0
 					}
-					for _, record := range records[start:] {
+					for _, record := range shown[start:] {
 						Text(c, fmt.Sprintf("%s  %-12s %-10s %s", record.Time.Format("15:04:05"), record.Op, record.Result, trim(record.Path, 80))).
 							Font(fontMono).FontSize(11).TextColor(fgMuted()).
 							SingleLine().Ellipsis("…").Tooltip(record.Path)

@@ -123,3 +123,37 @@ func TestRunRefusesUnwritableLog(t *testing.T) {
 		t.Fatal("Run succeeded on an unwritable log")
 	}
 }
+
+func TestFilterAndSummarize(t *testing.T) {
+	records := []Record{
+		{Op: "clean", Path: `C:\cache\a`, Bytes: 1000, Result: ResultTrashed},
+		{Op: "clean", Path: `C:\cache\b`, Bytes: 2500, Result: ResultPermanent},
+		{Op: "clean", Path: `C:\cache\c`, Bytes: 9000, Result: ResultFailed, Err: "locked"},
+		{Op: "dns.flush", Path: "dns.flush", Bytes: 0, Result: ResultDone},
+		{Op: "uninstall", Path: `C:\Users\me\AppData\Local\OldApp`, Bytes: 500, Result: ResultTrashed},
+	}
+
+	all := Summarize(records)
+	if all.TotalRecords != 5 {
+		t.Errorf("TotalRecords = %d, want 5", all.TotalRecords)
+	}
+	if all.ReclaimedBytes != 4000 {
+		t.Errorf("ReclaimedBytes = %d, want 4000 (failed deletion must not be counted)", all.ReclaimedBytes)
+	}
+	if all.ByCategory["clean"] != 3 || all.ByCategory["optimize"] != 1 || all.ByCategory["uninstall"] != 1 {
+		t.Errorf("ByCategory = %+v", all.ByCategory)
+	}
+
+	if got := Filter(records, "clean"); len(got) != 3 {
+		t.Errorf("Filter(clean) = %d, want 3", len(got))
+	}
+	if got := Filter(records, "optimize"); len(got) != 1 || got[0].Op != "dns.flush" {
+		t.Errorf("Filter(optimize) = %+v, want dns.flush", got)
+	}
+	if got := Filter(records, "uninstall"); len(got) != 1 {
+		t.Errorf("Filter(uninstall) = %d, want 1", len(got))
+	}
+	if got := Filter(records, ""); len(got) != 5 {
+		t.Errorf("Filter('') = %d, want 5", len(got))
+	}
+}

@@ -106,6 +106,9 @@ func (a *App) refreshApps() {
 	case 3:
 		a.scanOrphaned()
 	default:
+		if a.Software != nil {
+			a.Software.InvalidateCache()
+		}
 		a.software.loaded = false
 		a.loadApps()
 	}

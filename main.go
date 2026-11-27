@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
 
+	"elom/internal/cli"
 	"elom/internal/core/maint"
 	"elom/internal/core/oplog"
 	"elom/internal/core/settings"
@@ -28,6 +30,11 @@ func main() {
 			os.Exit(1)
 		}
 		return
+	}
+	// Read-only / dry-run CLI commands run headless without taking the
+	// single-instance lock or opening a MyGo window.
+	if cli.IsCommand(os.Args[1:]) {
+		os.Exit(cli.Run(context.Background(), os.Args[1:], os.Stdout, os.Stderr))
 	}
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
