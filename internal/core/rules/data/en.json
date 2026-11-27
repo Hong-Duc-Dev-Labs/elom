@@ -6,8 +6,10 @@
     "paths": [
       "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Cache",
       "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Code Cache",
-      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\GPUCache"
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\GPUCache",
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\*\\Service Worker\\CacheStorage"
     ],
+    "processes": ["chrome.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -21,8 +23,11 @@
     "paths": [
       "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Cache",
       "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Code Cache",
-      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\GPUCache"
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\GPUCache",
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\*\\Service Worker\\CacheStorage",
+      "%LOCALAPPDATA%\\Microsoft\\Edge\\User Data\\ShaderCache"
     ],
+    "processes": ["msedge.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -34,13 +39,16 @@
     "category": "browser",
     "app": "Firefox",
     "paths": [
-      "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\cache2"
+      "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\cache2",
+      "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\startupCache",
+      "%LOCALAPPDATA%\\Mozilla\\Firefox\\Profiles\\*\\shader-cache"
     ],
+    "processes": ["firefox.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
     "requiresAdmin": false,
-    "note": "The HTTP cache only; bookmarks, logins and history live elsewhere."
+    "note": "HTTP, startup and shader caches only; bookmarks, logins and history live elsewhere."
   },
   {
     "id": "brave-cache",
@@ -48,8 +56,11 @@
     "app": "Brave",
     "paths": [
       "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Cache",
-      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Code Cache"
+      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Code Cache",
+      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\GPUCache",
+      "%LOCALAPPDATA%\\BraveSoftware\\Brave-Browser\\User Data\\*\\Service Worker\\CacheStorage"
     ],
+    "processes": ["brave.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -61,8 +72,10 @@
     "category": "browser",
     "app": "Google Chrome",
     "paths": [
-      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\ShaderCache"
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\ShaderCache",
+      "%LOCALAPPDATA%\\Google\\Chrome\\User Data\\GrShaderCache"
     ],
+    "processes": ["chrome.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -76,15 +89,19 @@
     "paths": [
       "%APPDATA%\\Code\\Cache",
       "%APPDATA%\\Code\\CachedData",
+      "%APPDATA%\\Code\\CachedExtensions",
+      "%APPDATA%\\Code\\CachedExtensionVSIXs",
       "%APPDATA%\\Code\\Code Cache",
       "%APPDATA%\\Code\\GPUCache",
-      "%APPDATA%\\Code\\logs"
+      "%APPDATA%\\Code\\logs",
+      "%LOCALAPPDATA%\\Microsoft\\vscode-cpptools"
     ],
+    "processes": ["Code.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
     "requiresAdmin": false,
-    "note": "Settings, extensions and workspace state are not in these folders."
+    "note": "Settings, installed extensions and workspace state are not in these folders."
   },
   {
     "id": "vscode-insiders-cache",
@@ -93,8 +110,13 @@
     "paths": [
       "%APPDATA%\\Code - Insiders\\Cache",
       "%APPDATA%\\Code - Insiders\\CachedData",
+      "%APPDATA%\\Code - Insiders\\CachedExtensions",
+      "%APPDATA%\\Code - Insiders\\CachedExtensionVSIXs",
+      "%APPDATA%\\Code - Insiders\\Code Cache",
+      "%APPDATA%\\Code - Insiders\\GPUCache",
       "%APPDATA%\\Code - Insiders\\logs"
     ],
+    "processes": ["Code - Insiders.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": false,
@@ -110,6 +132,7 @@
       "%APPDATA%\\Microsoft\\Teams\\Code Cache",
       "%APPDATA%\\Microsoft\\Teams\\GPUCache"
     ],
+    "processes": ["Teams.exe", "ms-teams.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -122,8 +145,11 @@
     "app": "Slack",
     "paths": [
       "%APPDATA%\\Slack\\Cache",
-      "%APPDATA%\\Slack\\Code Cache"
+      "%APPDATA%\\Slack\\Code Cache",
+      "%APPDATA%\\Slack\\GPUCache",
+      "%APPDATA%\\Slack\\Service Worker\\CacheStorage"
     ],
+    "processes": ["slack.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -136,8 +162,10 @@
     "app": "Discord",
     "paths": [
       "%APPDATA%\\discord\\Cache",
-      "%APPDATA%\\discord\\Code Cache"
+      "%APPDATA%\\discord\\Code Cache",
+      "%APPDATA%\\discord\\GPUCache"
     ],
+    "processes": ["Discord.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -151,6 +179,7 @@
     "paths": [
       "%LOCALAPPDATA%\\Spotify\\Storage"
     ],
+    "processes": ["Spotify.exe"],
     "minAgeDays": 7,
     "regenerates": true,
     "defaultChecked": false,
@@ -164,6 +193,7 @@
     "paths": [
       "%LOCALAPPDATA%\\Microsoft\\Office\\16.0\\OfficeFileCache"
     ],
+    "processes": ["WINWORD.EXE", "EXCEL.EXE", "POWERPNT.EXE"],
     "minAgeDays": 7,
     "regenerates": true,
     "defaultChecked": false,
@@ -171,11 +201,27 @@
     "note": "Documents opened from SharePoint or OneDrive. Unsaved offline edits can exist: open them first."
   },
   {
+    "id": "office-wef-outlook-cache",
+    "category": "app-cache",
+    "app": "Microsoft Office / Outlook",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\Office\\16.0\\Wef",
+      "%LOCALAPPDATA%\\Microsoft\\Outlook\\RoamCache"
+    ],
+    "processes": ["OUTLOOK.EXE", "olk.exe", "WINWORD.EXE", "EXCEL.EXE"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Office add-in web cache and Outlook roam cache. Rebuilt automatically on next launch."
+  },
+  {
     "id": "d3d-shader-cache",
     "category": "app-cache",
     "app": "DirectX",
     "paths": [
-      "%LOCALAPPDATA%\\D3DSCache"
+      "%LOCALAPPDATA%\\D3DSCache",
+      "%LOCALAPPDATA%\\Microsoft\\DirectX Shader Cache"
     ],
     "minAgeDays": 0,
     "regenerates": true,
@@ -189,7 +235,8 @@
     "app": "NVIDIA",
     "paths": [
       "%LOCALAPPDATA%\\NVIDIA\\DXCache",
-      "%LOCALAPPDATA%\\NVIDIA\\GLCache"
+      "%LOCALAPPDATA%\\NVIDIA\\GLCache",
+      "%LOCALAPPDATA%\\NVIDIA Corporation\\NV_Cache"
     ],
     "minAgeDays": 0,
     "regenerates": true,
@@ -203,13 +250,130 @@
     "app": "AMD",
     "paths": [
       "%LOCALAPPDATA%\\AMD\\DxCache",
-      "%LOCALAPPDATA%\\AMD\\DxcCache"
+      "%LOCALAPPDATA%\\AMD\\DxcCache",
+      "%LOCALAPPDATA%\\AMD\\GLCache",
+      "%LOCALAPPDATA%\\AMD\\VkCache"
     ],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
     "requiresAdmin": false,
     "note": "The driver rebuilds these caches."
+  },
+  {
+    "id": "intel-shader-cache",
+    "category": "app-cache",
+    "app": "Intel GPU",
+    "paths": [
+      "%LOCALAPPDATA%\\Intel\\ShaderCache",
+      "%APPDATA%\\Intel\\ShaderCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Intel graphics shader cache; rebuilt automatically."
+  },
+  {
+    "id": "vulkan-shader-cache",
+    "category": "app-cache",
+    "app": "Vulkan",
+    "paths": [
+      "%LOCALAPPDATA%\\VulkanCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Vulkan pipeline cache; games and apps recompile shaders on demand."
+  },
+  {
+    "id": "adobe-cache",
+    "category": "app-cache",
+    "app": "Adobe",
+    "paths": [
+      "%APPDATA%\\Adobe\\Common\\Media Cache Files",
+      "%APPDATA%\\Adobe\\Common\\Peak Files",
+      "%LOCALAPPDATA%\\Adobe\\*\\Cache",
+      "%LOCALAPPDATA%\\Adobe\\*\\CameraRaw\\Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Media, peak and CameraRaw caches. Projects rebuild them on next open."
+  },
+  {
+    "id": "epic-games-cache",
+    "category": "app-cache",
+    "app": "Epic Games Launcher",
+    "paths": [
+      "%LOCALAPPDATA%\\EpicGamesLauncher\\Saved\\webcache",
+      "%LOCALAPPDATA%\\EpicGamesLauncher\\Saved\\Logs"
+    ],
+    "processes": ["EpicGamesLauncher.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Launcher web cache and logs; installed games and saves are untouched."
+  },
+  {
+    "id": "ea-app-cache",
+    "category": "app-cache",
+    "app": "EA App",
+    "paths": [
+      "%LOCALAPPDATA%\\Electronic Arts\\EA Desktop\\cache"
+    ],
+    "processes": ["EADesktop.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "EA App launcher cache; games are untouched."
+  },
+  {
+    "id": "ubisoft-connect-cache",
+    "category": "app-cache",
+    "app": "Ubisoft Connect",
+    "paths": [
+      "%LOCALAPPDATA%\\Ubisoft Game Launcher\\cache",
+      "%LOCALAPPDATA%\\Ubisoft Game Launcher\\logs"
+    ],
+    "processes": ["upc.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Ubisoft Connect cache and logs; games are untouched."
+  },
+  {
+    "id": "battlenet-cache",
+    "category": "app-cache",
+    "app": "Battle.net",
+    "paths": [
+      "%APPDATA%\\Battle.net\\Cache",
+      "%APPDATA%\\Battle.net\\Logs"
+    ],
+    "processes": ["Battle.net.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Battle.net launcher cache and logs; installed games stay."
+  },
+  {
+    "id": "ms-store-cache",
+    "category": "app-cache",
+    "app": "Microsoft Store",
+    "paths": [
+      "%LOCALAPPDATA%\\Packages\\Microsoft.WindowsStore_*\\LocalCache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Microsoft Store local cache; installed apps are untouched."
   },
   {
     "id": "explorer-thumbnails",
@@ -277,6 +441,33 @@
     "note": "Queued and archived crash reports older than a week."
   },
   {
+    "id": "onedrive-logs",
+    "category": "logs",
+    "app": "OneDrive",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\OneDrive\\logs",
+      "%LOCALAPPDATA%\\Microsoft\\OneDrive\\setup\\logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "OneDrive diagnostic logs older than a week; synced files are untouched."
+  },
+  {
+    "id": "google-drive-logs",
+    "category": "logs",
+    "app": "Google Drive",
+    "paths": [
+      "%LOCALAPPDATA%\\Google\\DriveFS\\Logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Google Drive diagnostic logs older than a week; synced files are untouched."
+  },
+  {
     "id": "npm-cache",
     "category": "dev-cache",
     "app": "npm",
@@ -314,6 +505,34 @@
     "defaultChecked": true,
     "requiresAdmin": false,
     "note": "Yarn Classic re-downloads packages when it needs them."
+  },
+  {
+    "id": "bun-cache",
+    "category": "dev-cache",
+    "app": "Bun",
+    "paths": [
+      "%USERPROFILE%\\.bun\\install\\cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Bun package install cache; next install re-downloads packages."
+  },
+  {
+    "id": "node-build-caches",
+    "category": "dev-cache",
+    "app": "Node.js / Electron / TypeScript",
+    "paths": [
+      "%LOCALAPPDATA%\\node-gyp\\Cache",
+      "%LOCALAPPDATA%\\electron\\Cache",
+      "%LOCALAPPDATA%\\TypeScript"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Cached node-gyp headers, Electron binaries and TypeScript server cache."
   },
   {
     "id": "go-build-cache",
@@ -355,6 +574,32 @@
     "note": "pip re-downloads wheels on the next install."
   },
   {
+    "id": "uv-cache",
+    "category": "dev-cache",
+    "app": "uv",
+    "paths": [
+      "%LOCALAPPDATA%\\uv\\cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "uv Python package cache; next install re-downloads wheels."
+  },
+  {
+    "id": "poetry-cache",
+    "category": "dev-cache",
+    "app": "Poetry",
+    "paths": [
+      "%LOCALAPPDATA%\\pypoetry\\Cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Poetry artifact cache; virtualenvs in projects are untouched."
+  },
+  {
     "id": "cargo-registry-cache",
     "category": "dev-cache",
     "app": "Rust / Cargo",
@@ -366,6 +611,19 @@
     "defaultChecked": false,
     "requiresAdmin": false,
     "note": "Crate archives; the registry index and built artifacts are kept."
+  },
+  {
+    "id": "rustup-downloads",
+    "category": "dev-cache",
+    "app": "Rustup",
+    "paths": [
+      "%USERPROFILE%\\.rustup\\downloads"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Downloaded toolchain installers already unpacked; installed toolchains stay."
   },
   {
     "id": "gradle-caches",
@@ -385,13 +643,88 @@
     "category": "dev-cache",
     "app": "NuGet",
     "paths": [
-      "%LOCALAPPDATA%\\NuGet\\v3-cache"
+      "%LOCALAPPDATA%\\NuGet\\v3-cache",
+      "%LOCALAPPDATA%\\NuGet\\plugins-cache"
     ],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
     "requiresAdmin": false,
-    "note": "HTTP cache only; global packages stay."
+    "note": "HTTP and plugin caches only; global packages stay."
+  },
+  {
+    "id": "jetbrains-cache",
+    "category": "dev-cache",
+    "app": "JetBrains IDEs",
+    "paths": [
+      "%LOCALAPPDATA%\\JetBrains\\*\\caches",
+      "%LOCALAPPDATA%\\JetBrains\\*\\index",
+      "%LOCALAPPDATA%\\JetBrains\\*\\tmp"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "IDE caches and indexes; projects re-index on next open. Settings and plugins live elsewhere."
+  },
+  {
+    "id": "visual-studio-cache",
+    "category": "dev-cache",
+    "app": "Visual Studio",
+    "paths": [
+      "%LOCALAPPDATA%\\Microsoft\\VisualStudio\\*\\ComponentModelCache",
+      "%LOCALAPPDATA%\\Microsoft\\VisualStudio\\*\\ImageCache"
+    ],
+    "processes": ["devenv.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Visual Studio MEF component and image caches; rebuilt on next launch."
+  },
+  {
+    "id": "zed-cache",
+    "category": "dev-cache",
+    "app": "Zed",
+    "paths": [
+      "%LOCALAPPDATA%\\Zed\\cache",
+      "%APPDATA%\\Zed\\cache"
+    ],
+    "processes": ["Zed.exe"],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": true,
+    "requiresAdmin": false,
+    "note": "Zed editor cache; settings and keymaps are untouched."
+  },
+  {
+    "id": "cloud-cli-caches",
+    "category": "dev-cache",
+    "app": "Cloud CLIs (AWS / Kubernetes / Terraform)",
+    "paths": [
+      "%USERPROFILE%\\.aws\\cli\\cache",
+      "%USERPROFILE%\\.kube\\cache",
+      "%APPDATA%\\terraform.d\\plugin-cache"
+    ],
+    "minAgeDays": 0,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "Cached CLI tokens/discovery schemas and provider plugins only; credentials and configs are untouched."
+  },
+  {
+    "id": "cloud-cli-logs",
+    "category": "logs",
+    "app": "Cloud CLIs (Azure / Google Cloud)",
+    "paths": [
+      "%USERPROFILE%\\.azure\\logs",
+      "%APPDATA%\\gcloud\\logs"
+    ],
+    "minAgeDays": 7,
+    "regenerates": true,
+    "defaultChecked": false,
+    "requiresAdmin": false,
+    "note": "CLI diagnostic logs older than a week; credentials and configs are untouched."
   },
   {
     "id": "opera-cache",
@@ -401,6 +734,7 @@
       "%LOCALAPPDATA%\\Opera Software\\Opera Stable\\Cache",
       "%LOCALAPPDATA%\\Opera Software\\Opera Stable\\Code Cache"
     ],
+    "processes": ["opera.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -414,6 +748,7 @@
     "paths": [
       "%LOCALAPPDATA%\\Vivaldi\\User Data\\*\\Cache"
     ],
+    "processes": ["vivaldi.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -427,6 +762,7 @@
     "paths": [
       "%LOCALAPPDATA%\\Thunderbird\\Profiles\\*\\cache2"
     ],
+    "processes": ["thunderbird.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -441,6 +777,7 @@
       "%APPDATA%\\Notion\\Cache",
       "%APPDATA%\\Notion\\Code Cache"
     ],
+    "processes": ["Notion.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -455,6 +792,7 @@
       "%APPDATA%\\Postman\\Cache",
       "%APPDATA%\\Postman\\Code Cache"
     ],
+    "processes": ["Postman.exe"],
     "minAgeDays": 0,
     "regenerates": true,
     "defaultChecked": true,
@@ -468,6 +806,7 @@
     "paths": [
       "%APPDATA%\\obs-studio\\logs"
     ],
+    "processes": ["obs64.exe"],
     "minAgeDays": 7,
     "regenerates": true,
     "defaultChecked": false,
@@ -494,6 +833,7 @@
     "paths": [
       "%APPDATA%\\Zoom\\logs"
     ],
+    "processes": ["Zoom.exe"],
     "minAgeDays": 7,
     "regenerates": true,
     "defaultChecked": false,

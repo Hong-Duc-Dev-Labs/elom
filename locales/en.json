@@ -186,5 +186,18 @@
   "appsLocation": "Install location",
   "appsKind": "Source",
   "cleanScreenOpen": "Open",
-  "cleanScreenRow": "Hides the desktop behind a screensaver while the PC is busy."
+  "cleanScreenRow": "Hides the desktop behind a screensaver while the PC is busy.",
+  "cleanRunningApp": "Running ({process}) — close it first before clearing its cache.",
+  "appsProtected": "system component",
+  "appsProtectedNote": "System runtime, driver or core component. Removing it can break other apps or games.",
+  "appsProtectedConfirmDetail": "This looks like a system runtime, driver or core Windows component. Removing it can break other apps or games. Continue only if you are sure.",
+  "statusDiagOk": "All clear",
+  "statusDiagCpu": "CPU load high",
+  "statusDiagCpuProc": "{name} high CPU",
+  "statusDiagMem": "Memory pressure high",
+  "statusDiagMemProc": "{name} high memory",
+  "statusDiagDisk": "Disk low, {free} free",
+  "statusDiagDiskIO": "Disk I/O busy",
+  "statusDiagUptime": "Long uptime — restart recommended",
+  "statusDriveFree": "{drive} {free} free"
 }

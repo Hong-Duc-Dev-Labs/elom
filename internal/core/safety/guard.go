@@ -72,6 +72,11 @@ func New() *Guard {
 			filepath.Join(home, ".m2"),
 			filepath.Join(home, ".cache"),
 			filepath.Join(home, "go", "pkg", "mod"),
+			filepath.Join(home, ".bun", "install", "cache"),
+			filepath.Join(home, ".rustup", "downloads"),
+			filepath.Join(home, ".aws", "cli", "cache"),
+			filepath.Join(home, ".azure", "logs"),
+			filepath.Join(home, ".kube", "cache"),
 		),
 		protected: compact(
 			systemRoot,

@@ -122,21 +122,100 @@ func TestSamplerSurvivesReadError(t *testing.T) {
 }
 
 func TestHealth(t *testing.T) {
-	cases := []struct {
-		cpu, mem float64
-		want     int
-	}{
-		{10, 40, 100},
-		{95, 40, 90},
-		{99, 40, 86},
-		{10, 80, 85},
-		{10, 95, 60},
-		{100, 100, 45},
+	if got := healthScore(10, 40, 100_000_000_000, 500_000_000_000, 0, time.Hour); got != 100 {
+		t.Errorf("idle healthScore = %d, want 100", got)
 	}
-	for _, c := range cases {
-		if got := health(c.cpu, c.mem); got != c.want {
-			t.Errorf("health(%v, %v) = %d, want %d", c.cpu, c.mem, got, c.want)
-		}
+	// High CPU lowers score monotonically.
+	low := healthScore(80, 40, 100_000_000_000, 500_000_000_000, 0, time.Hour)
+	high := healthScore(95, 40, 100_000_000_000, 500_000_000_000, 0, time.Hour)
+	if !(high < low && low < 100) {
+		t.Errorf("CPU health not monotonic: 80%%=%d, 95%%=%d", low, high)
+	}
+	// Disk at 92% used with 200 GB free (2.5 TB drive) is NOT critical, whereas
+	// 92% used with 10 GB free IS critical.
+	bigDrive := healthScore(10, 40, 200_000_000_000, 2_500_000_000_000, 0, time.Hour)
+	smallDrive := healthScore(10, 40, 10_000_000_000, 125_000_000_000, 0, time.Hour)
+	if diskIsCritical(200_000_000_000, 2_500_000_000_000) {
+		t.Error("2.5 TB drive with 200 GB free flagged critical")
+	}
+	if !diskIsCritical(10_000_000_000, 125_000_000_000) {
+		t.Error("125 GB drive with 10 GB free not flagged critical")
+	}
+	if !(smallDrive < bigDrive) {
+		t.Errorf("critical small drive (%d) should score lower than big drive (%d)", smallDrive, bigDrive)
+	}
+	// Heavy disk I/O and long uptime penalize health.
+	if got := healthScore(10, 40, 100_000_000_000, 500_000_000_000, 200_000_000, 15*24*time.Hour); got != 87 {
+		t.Errorf("heavy IO + 15d uptime healthScore = %d, want 87", got)
+	}
+}
+
+func TestDiagnose(t *testing.T) {
+	if got := diagnose(Snapshot{CPU: 15, MemUsed: 4, MemTotal: 16}); got.Kind != "ok" {
+		t.Errorf("idle diagnose = %+v, want ok", got)
+	}
+	got := diagnose(Snapshot{
+		CPU: 92,
+		Processes: []Process{
+			{PID: 1, Name: "chrome.exe", CPU: 75},
+			{PID: 2, Name: "idle.exe", CPU: 2},
+		},
+	})
+	if got.Kind != "cpu" || got.Target != "chrome.exe" {
+		t.Errorf("cpu diagnose = %+v, want cpu/chrome.exe", got)
+	}
+	got = diagnose(Snapshot{
+		CPU:      20,
+		MemUsed:  95,
+		MemTotal: 100,
+		Processes: []Process{
+			{PID: 1, Name: "Code.exe", Memory: 8_000_000_000},
+		},
+	})
+	if got.Kind != "memory" || got.Target != "Code.exe" {
+		t.Errorf("memory diagnose = %+v, want memory/Code.exe", got)
+	}
+	got = diagnose(Snapshot{
+		CPU:      10,
+		SysFree:  10_000_000_000,
+		SysTotal: 200_000_000_000,
+	})
+	if got.Kind != "disk" || got.FreeBytes != 10_000_000_000 {
+		t.Errorf("disk diagnose = %+v, want disk", got)
+	}
+}
+
+func TestComputeProcessesGuardsPIDReuseAndLimitsUserLookups(t *testing.T) {
+	t0 := time.Date(2026, 11, 27, 8, 0, 0, 0, time.UTC)
+	t1 := t0.Add(2 * time.Second)
+	prev := map[int32]procSample{
+		10: {created: 1000, total: 5.0, at: t0},
+		20: {created: 2000, total: 10.0, at: t0}, // will be reused PID with different created
+	}
+	samples := []rawProcSample{
+		{pid: 10, name: "busy.exe", created: 1000, total: 7.0, hasCPU: true, rss: 100, at: t1},  // delta 2s / 2s = 100%
+		{pid: 20, name: "new.exe", created: 9999, total: 50.0, hasCPU: true, rss: 200, at: t1},  // PID reused -> 0%
+		{pid: 30, name: "idle.exe", created: 3000, total: 1.0, hasCPU: true, rss: 50, at: t1},   // first sample -> 0%
+	}
+	lookups := 0
+	procs, next := computeProcesses(samples, prev, 2, func(pid int32) string {
+		lookups++
+		return fmt.Sprintf("user-%d", pid)
+	})
+	if len(procs) != 2 {
+		t.Fatalf("len(procs) = %d, want 2", len(procs))
+	}
+	if lookups != 2 {
+		t.Errorf("lookupUser called %d times, want 2 (only topN)", lookups)
+	}
+	if procs[0].PID != 10 || procs[0].CPU < 99.9 || procs[0].CPU > 100.1 || procs[0].User != "user-10" {
+		t.Errorf("top proc = %+v, want PID 10 at ~100%% CPU", procs[0])
+	}
+	if procs[1].PID != 20 || procs[1].CPU != 0 {
+		t.Errorf("reused PID proc = %+v, want 0%% CPU", procs[1])
+	}
+	if len(next) != 3 {
+		t.Errorf("next samples = %d, want 3", len(next))
 	}
 }
 

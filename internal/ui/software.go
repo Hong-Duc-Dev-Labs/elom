@@ -242,6 +242,9 @@ func (a *App) softwareDetail(c *Context, app apps.App, pal palette) {
 			if app.Kind != "" {
 				field(locales.AppsKind(), string(app.Kind))
 			}
+			if app.Protected || apps.IsProtected(app) {
+				Text(c, locales.AppsProtectedNote()).FontSize(sizeCaption).TextColor(appTheme.Warning)
+			}
 			Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(4, 0, 0, 0).Children(func() {
 				if app.InstallLocation != "" {
 					location := app.InstallLocation
@@ -317,11 +320,15 @@ func (a *App) loadApps() {
 
 func (a *App) uninstallApp(app apps.App) {
 	go func() {
+		detail := locales.SoftwareConfirmDetail()
+		if app.Protected || apps.IsProtected(app) {
+			detail = locales.AppsProtectedConfirmDetail()
+		}
 		res, err := mygo.Dialog.Message(mygo.MessageOptions{
 			Parent:             a.Win,
 			Type:               mygo.MessageWarning,
 			Message:            locales.SoftwareConfirmTitle(app.Name),
-			Detail:             locales.SoftwareConfirmDetail(),
+			Detail:             detail,
 			Buttons:            []string{locales.CleanCancel(), locales.SoftwareUninstall()},
 			DefaultButton:      1,
 			CancelButton:       0,

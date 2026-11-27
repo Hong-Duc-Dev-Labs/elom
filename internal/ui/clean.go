@@ -223,6 +223,8 @@ func (a *App) candidateRow(c *Context, cand scan.Candidate) {
 			switch {
 			case cand.Blocked != nil:
 				Text(c, locales.CleanBlocked(cand.Blocked.Error())).FontSize(sizeCaption).TextColor(appTheme.Warning)
+			case cand.RunningProcess != "":
+				Text(c, locales.CleanRunningApp(cand.RunningProcess)).FontSize(sizeCaption).TextColor(appTheme.Warning)
 			case cand.Note != "":
 				Text(c, cand.Note).FontSize(sizeCaption).TextColor(fgMuted())
 			}

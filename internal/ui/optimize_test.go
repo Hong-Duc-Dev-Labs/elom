@@ -16,7 +16,16 @@ func TestOptimizePageRendersTasks(t *testing.T) {
 	a.Screen = "optimize"
 	tt := NewTester(a.View, 1180, 760)
 	texts := strings.Join(tt.Texts(), "\n")
-	for _, want := range []string{"Flush the DNS cache", "Optimize the system drive", "needs administrator", "Each task is a named operation"} {
+	for _, want := range []string{
+		"Flush the DNS cache",
+		"Optimize the system drive",
+		"Clean up the Windows component store",
+		"Check physical disk health",
+		"Reset the Microsoft Store cache",
+		"Clear old Windows logs and crash dumps",
+		"needs administrator",
+		"Each task is a named operation",
+	} {
 		if !strings.Contains(texts, want) {
 			t.Errorf("missing %q in:\n%s", want, texts)
 		}

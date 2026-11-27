@@ -9,10 +9,12 @@ import (
 
 func TestBuiltinCatalogIsValid(t *testing.T) {
 	catalog := Builtin()
-	if len(catalog) < 25 {
-		t.Fatalf("catalog has %d rules, want at least 25", len(catalog))
+	if len(catalog) < 45 {
+		t.Fatalf("catalog has %d rules, want at least 45", len(catalog))
 	}
+	ids := map[string]Rule{}
 	for _, r := range catalog {
+		ids[r.ID] = r
 		if r.Note == "" {
 			t.Errorf("%s has no note explaining the effect", r.ID)
 		}
@@ -23,7 +25,19 @@ func TestBuiltinCatalogIsValid(t *testing.T) {
 			if strings.Contains(p, "..") {
 				t.Errorf("%s escapes its parent: %s", r.ID, p)
 			}
+			lower := strings.ToLower(p)
+			if strings.Contains(lower, "jupyter") || strings.Contains(lower, "program files") {
+				t.Errorf("%s targets unsafe location: %s", r.ID, p)
+			}
 		}
+	}
+	for _, want := range []string{"intel-shader-cache", "vulkan-shader-cache", "uv-cache", "bun-cache", "jetbrains-cache", "visual-studio-cache", "adobe-cache", "epic-games-cache"} {
+		if _, ok := ids[want]; !ok {
+			t.Errorf("missing expected rule %q", want)
+		}
+	}
+	if len(ids["chrome-cache"].Processes) == 0 {
+		t.Error("chrome-cache has no processes list for live-app check")
 	}
 }
 

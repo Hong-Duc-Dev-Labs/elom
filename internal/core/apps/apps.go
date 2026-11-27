@@ -34,6 +34,9 @@ type App struct {
 	SizeBytes       int64
 	Icon            string
 	Kind            Kind
+	// Protected marks system runtimes, drivers and OS components that users
+	// should not uninstall lightly.
+	Protected bool
 }
 
 // ParseUninstall turns one uninstall registry key's values into an App. It
@@ -59,7 +62,7 @@ func ParseUninstall(keyPath string, vals map[string]string, ints map[string]uint
 	if kb, ok := ints["EstimatedSize"]; ok {
 		size = int64(kb) * 1024
 	}
-	return App{
+	app := App{
 		ID:              keyPath,
 		Name:            name,
 		Version:         strings.TrimSpace(vals["DisplayVersion"]),
@@ -70,7 +73,9 @@ func ParseUninstall(keyPath string, vals map[string]string, ints map[string]uint
 		SizeBytes:       size,
 		Icon:            strings.TrimSpace(vals["DisplayIcon"]),
 		Kind:            KindRegistry,
-	}, true
+	}
+	app.Protected = IsProtected(app)
+	return app, true
 }
 
 // SortApps orders by size, largest first, then by name.
@@ -156,6 +161,40 @@ func LikelyAppFolder(dirName string, app App) string {
 
 // BaseName is the folder name of a path, for display and matching.
 func BaseName(path string) string { return filepath.Base(path) }
+
+// protectedAppPatterns match critical Windows runtimes, drivers and system
+// components that removing can break installed games or applications.
+var protectedAppPatterns = []string{
+	"microsoft windows",
+	"windows feature experience pack",
+	"microsoft edge",
+	"microsoft edge webview2*",
+	"windows security",
+	"microsoft visual c++*",
+	"microsoft .net *",
+	"microsoft windows desktop runtime*",
+	".net desktop runtime*",
+	"microsoft update health tools*",
+	"nvidia graphics driver*",
+	"amd software*",
+	"intel*graphics*driver*",
+	"intel*driver*",
+}
+
+// IsProtected reports whether app is a system runtime, driver or core OS
+// component that warrants an explicit warning before uninstalling.
+func IsProtected(app App) bool {
+	name := strings.ToLower(strings.TrimSpace(app.Name))
+	if name == "" {
+		return false
+	}
+	for _, pattern := range protectedAppPatterns {
+		if ok, err := filepath.Match(pattern, name); err == nil && ok {
+			return true
+		}
+	}
+	return false
+}
 
 // ParseSizeKB reads a registry size value that some vendors store as a string.
 func ParseSizeKB(vals map[string]string, ints map[string]uint64) int64 {

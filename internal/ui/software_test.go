@@ -215,6 +215,26 @@ func TestSoftwareExplainsMissingUninstaller(t *testing.T) {
 	}
 }
 
+func TestSoftwareProtectedAppShowsWarning(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.software.loaded = true
+	a.software.list = []apps.App{{
+		Name:      "Microsoft Visual C++ 2015-2022 Redistributable (x64)",
+		Publisher: "Microsoft Corporation",
+		Uninstall: `C:\vcredist.exe /uninstall`,
+		Protected: true,
+	}}
+	a.software.picked = 0
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"system component", "Removing it can break other apps or games"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+}
+
 func TestSoftwareDetailRendersSelectedApp(t *testing.T) {
 	a := newTestApp(t)
 	a.Screen = "software"

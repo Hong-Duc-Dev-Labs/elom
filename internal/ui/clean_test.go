@@ -76,6 +76,21 @@ func TestCleanConfirmMatchesDeleteMode(t *testing.T) {
 	}
 }
 
+func TestCleanRowShowsRunningAppWarning(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "clean"
+	a.clean.scanned = true
+	a.clean.reviewing = true
+	a.clean.candidates = []scan.Candidate{
+		{Path: `C:\Users\ada\AppData\Local\Chrome\Cache`, Bytes: 4096, Category: "browser", RunningProcess: "chrome.exe"},
+	}
+
+	tt := NewTester(a.View, 1180, 760)
+	if !strings.Contains(strings.Join(tt.Texts(), "\n"), "Running (chrome.exe)") {
+		t.Errorf("running app warning not shown: %q", tt.Texts())
+	}
+}
+
 func TestHumanBytes(t *testing.T) {
 	cases := map[int64]string{
 		0:             "0 B",

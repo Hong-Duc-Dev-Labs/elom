@@ -32,6 +32,10 @@ type Candidate struct {
 	Regenerates bool
 	// Checked is the initial state of the review's checkbox.
 	Checked bool
+	// RunningProcess names an owning executable that was running during the
+	// scan. When set, the candidate is unchecked by default so the user can
+	// close the app before clearing its cache.
+	RunningProcess string
 	// Blocked says why the path is shown but cannot be deleted: a guard
 	// refusal or a protection-list match.
 	Blocked error
@@ -54,6 +58,9 @@ type Options struct {
 	Now time.Time
 	// Workers is the sizing concurrency; zero means min(NumCPU, 8).
 	Workers int
+	// RunningProcesses overrides live process detection when non-nil (for
+	// tests). Keys are lower-cased executable names such as "chrome.exe".
+	RunningProcesses map[string]bool
 }
 
 // Run expands and sizes the catalog. It returns every candidate, including
@@ -67,6 +74,16 @@ func Run(ctx context.Context, guard *safety.Guard, catalog []rules.Rule, opt Opt
 	workers := opt.Workers
 	if workers <= 0 {
 		workers = min(runtime.NumCPU(), 8)
+	}
+
+	running := opt.RunningProcesses
+	if running == nil {
+		for _, rule := range catalog {
+			if len(rule.Processes) > 0 {
+				running = runningProcessNames()
+				break
+			}
+		}
 	}
 
 	type job struct {
@@ -106,7 +123,7 @@ func Run(ctx context.Context, guard *safety.Guard, catalog []rules.Rule, opt Opt
 					continue
 				default:
 				}
-				cand, keep := measure(guard, opt.Whitelist, jobs[i].rule, jobs[i].path, now)
+				cand, keep := measure(guard, opt.Whitelist, running, jobs[i].rule, jobs[i].path, now)
 				if !keep {
 					cand = Candidate{RuleID: jobs[i].rule.ID, Path: jobs[i].path, Skipped: true}
 				}
@@ -136,7 +153,7 @@ func Run(ctx context.Context, guard *safety.Guard, catalog []rules.Rule, opt Opt
 	return kept
 }
 
-func measure(guard *safety.Guard, whitelist []string, rule rules.Rule, path string, now time.Time) (Candidate, bool) {
+func measure(guard *safety.Guard, whitelist []string, running map[string]bool, rule rules.Rule, path string, now time.Time) (Candidate, bool) {
 	c := Candidate{
 		RuleID:      rule.ID,
 		Category:    rule.Category,
@@ -145,6 +162,10 @@ func measure(guard *safety.Guard, whitelist []string, rule rules.Rule, path stri
 		Path:        path,
 		Regenerates: rule.Regenerates,
 		Checked:     rule.DefaultChecked,
+	}
+	if proc := matchRunningProcess(rule.Processes, running); proc != "" {
+		c.RunningProcess = proc
+		c.Checked = false
 	}
 	if err := guard.Check(path); err != nil {
 		c.Blocked = err
@@ -238,6 +259,18 @@ func blockedByWhitelist(patterns []string, path string) bool {
 		}
 	}
 	return false
+}
+
+func matchRunningProcess(names []string, running map[string]bool) string {
+	if len(names) == 0 || len(running) == 0 {
+		return ""
+	}
+	for _, name := range names {
+		if running[strings.ToLower(name)] {
+			return name
+		}
+	}
+	return ""
 }
 
 var (

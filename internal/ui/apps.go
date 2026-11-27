@@ -228,7 +228,12 @@ func (a *App) uninstallTab(c *Context, pal palette) {
 			row.Children(func() {
 				a.appIcon(c, app, 28, pal)
 				Column(c).Grow(1).Gap(3).Children(func() {
-					Text(c, trim(app.Name, 70)).FontSize(13).FontWeight(600).TextColor(fgPrimary()).NoWrap()
+					Row(c).Gap(8).AlignItems(Center).Children(func() {
+						Text(c, trim(app.Name, 70)).FontSize(13).FontWeight(600).TextColor(fgPrimary()).NoWrap()
+						if app.Protected || apps.IsProtected(app) {
+							pillTag(c, locales.AppsProtected(), appTheme.Warning)
+						}
+					})
 					facts := []string{}
 					if app.Publisher != "" {
 						facts = append(facts, trim(app.Publisher, 36))

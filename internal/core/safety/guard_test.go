@@ -119,6 +119,27 @@ func TestCheckUsesEnvironment(t *testing.T) {
 	if err := g.Check(`C:\Users\ada\AppData\Local\npm-cache\_cacache`); err != nil {
 		t.Fatalf("allowed path refused: %v", err)
 	}
+	for _, allowed := range []string{
+		`C:\Users\ada\.bun\install\cache\pkg`,
+		`C:\Users\ada\.rustup\downloads\abc`,
+		`C:\Users\ada\.aws\cli\cache\token.json`,
+		`C:\Users\ada\.azure\logs\cli.log`,
+		`C:\Users\ada\.kube\cache\discovery`,
+	} {
+		if err := g.Check(allowed); err != nil {
+			t.Fatalf("narrow cache path %s refused: %v", allowed, err)
+		}
+	}
+	for _, refused := range []string{
+		`C:\Users\ada\.aws\credentials`,
+		`C:\Users\ada\.kube\config`,
+		`C:\Users\ada\.azure\msal_token_cache.json`,
+		`C:\Users\ada\.rustup\toolchains`,
+	} {
+		if err := g.Check(refused); err == nil {
+			t.Fatalf("credential/toolchain path %s was allowed", refused)
+		}
+	}
 	if err := g.Check(`C:\Windows\Temp\evil.dll`); err == nil {
 		t.Fatal("C:\\Windows\\Temp allowed")
 	}

@@ -92,6 +92,29 @@ func TestSortApps(t *testing.T) {
 	}
 }
 
+func TestIsProtected(t *testing.T) {
+	protected := []string{
+		"Microsoft Visual C++ 2015-2022 Redistributable (x64) - 14.40.33810",
+		"Microsoft .NET Runtime - 8.0.10 (x64)",
+		".NET Desktop Runtime 8.0",
+		"Microsoft Edge WebView2 Runtime",
+		"NVIDIA Graphics Driver 566.14",
+		"AMD Software: Adrenalin Edition",
+		"Intel(R) Wireless Bluetooth(R) Driver",
+		"Windows Security",
+	}
+	for _, name := range protected {
+		if !IsProtected(App{Name: name}) {
+			t.Errorf("IsProtected(%q) = false, want true", name)
+		}
+	}
+	for _, name := range []string{"Google Chrome", "Visual Studio Code", "7-Zip 24.08 (x64)", "Discord"} {
+		if IsProtected(App{Name: name}) {
+			t.Errorf("IsProtected(%q) = true, want false", name)
+		}
+	}
+}
+
 func TestParseSizeKB(t *testing.T) {
 	if got := ParseSizeKB(map[string]string{"EstimatedSize": "2048"}, nil); got != 2048 {
 		t.Errorf("string size = %d", got)
