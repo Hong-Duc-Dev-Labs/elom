@@ -115,7 +115,11 @@ func (a *App) statusPage(c *Context, pal palette) {
 				value, unit := splitBytes(int64(snap.SysFree))
 				bigNumber(c, value, unit)
 				bar(c, float32(percentOf(float64(used), float64(snap.SysTotal))/100), Hex("#5b8fe8"), 6)
-				hintText(c, locales.StatusUsed(humanBytes(int64(used)), int(percentOf(float64(used), float64(snap.SysTotal)))))
+				detail := locales.StatusUsed(humanBytes(int64(used)), int(percentOf(float64(used), float64(snap.SysTotal))))
+				if extra := extraDrivesLine(snap.Drives); extra != "" {
+					detail = extra
+				}
+				hintText(c, detail)
 			})
 		},
 		func() {
@@ -222,17 +226,55 @@ func (a *App) healthTile(c *Context, pal palette, snap metrics.Snapshot) {
 						bigNumber(c, fmt.Sprint(snap.Health), "")
 						Text(c, healthWord(snap.Health)).FontSize(13).TextColor(fgSecondary()).Margin(0, 0, 5, 0)
 					})
-					line := locales.StatusNormal()
-					if snap.Health < 85 {
-						line = locales.StatusBusy()
-					}
-					hintText(c, line)
+					hintText(c, diagnosisLine(snap.Diagnosis, snap.Health))
 					hintText(c, locales.StatusUptime()+" "+formatUptime(snap.Uptime))
 				})
 				planet(c, 84, pal)
 			})
 		})
 	})
+}
+
+func diagnosisLine(d metrics.Diagnosis, health int) string {
+	switch d.Kind {
+	case "cpu":
+		if d.Target != "" {
+			return locales.StatusDiagCpuProc(trim(d.Target, 20))
+		}
+		return locales.StatusDiagCpu()
+	case "memory":
+		if d.Target != "" {
+			return locales.StatusDiagMemProc(trim(d.Target, 20))
+		}
+		return locales.StatusDiagMem()
+	case "disk":
+		return locales.StatusDiagDisk(humanBytes(int64(d.FreeBytes)))
+	case "disk_io":
+		return locales.StatusDiagDiskIO()
+	case "uptime":
+		return locales.StatusDiagUptime()
+	case "ok":
+		return locales.StatusDiagOk()
+	default:
+		if health < 85 {
+			return locales.StatusBusy()
+		}
+		return locales.StatusNormal()
+	}
+}
+
+func extraDrivesLine(drives []metrics.Drive) string {
+	if len(drives) <= 1 {
+		return ""
+	}
+	parts := make([]string, 0, min(len(drives), 3))
+	for _, d := range drives {
+		if len(parts) >= 3 {
+			break
+		}
+		parts = append(parts, locales.StatusDriveFree(d.Mount, humanBytes(int64(d.Free))))
+	}
+	return strings.Join(parts, " · ")
 }
 
 // healthWord names a score as Mole does beside it.

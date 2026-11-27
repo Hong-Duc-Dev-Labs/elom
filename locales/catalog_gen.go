@@ -1964,3 +1964,95 @@ func AppsProtectedConfirmDetail() string { return In(i18n.Locale()).AppsProtecte
 func (msgs Messages) AppsProtectedConfirmDetail() string {
 	return Catalog.Format(msgs.locale, "appsProtectedConfirmDetail", nil)
 }
+
+// StatusDiagOk says "All clear"
+// in the language the app shows.
+func StatusDiagOk() string { return In(i18n.Locale()).StatusDiagOk() }
+
+// StatusDiagOk says "All clear"
+// in the language of msgs.
+func (msgs Messages) StatusDiagOk() string {
+	return Catalog.Format(msgs.locale, "statusDiagOk", nil)
+}
+
+// StatusDiagCpu says "CPU load high"
+// in the language the app shows.
+func StatusDiagCpu() string { return In(i18n.Locale()).StatusDiagCpu() }
+
+// StatusDiagCpu says "CPU load high"
+// in the language of msgs.
+func (msgs Messages) StatusDiagCpu() string {
+	return Catalog.Format(msgs.locale, "statusDiagCpu", nil)
+}
+
+// StatusDiagCpuProc says "{name} high CPU"
+// in the language the app shows.
+func StatusDiagCpuProc(name string) string { return In(i18n.Locale()).StatusDiagCpuProc(name) }
+
+// StatusDiagCpuProc says "{name} high CPU"
+// in the language of msgs.
+func (msgs Messages) StatusDiagCpuProc(name string) string {
+	return Catalog.Format(msgs.locale, "statusDiagCpuProc", map[string]any{"name": name})
+}
+
+// StatusDiagMem says "Memory pressure high"
+// in the language the app shows.
+func StatusDiagMem() string { return In(i18n.Locale()).StatusDiagMem() }
+
+// StatusDiagMem says "Memory pressure high"
+// in the language of msgs.
+func (msgs Messages) StatusDiagMem() string {
+	return Catalog.Format(msgs.locale, "statusDiagMem", nil)
+}
+
+// StatusDiagMemProc says "{name} high memory"
+// in the language the app shows.
+func StatusDiagMemProc(name string) string { return In(i18n.Locale()).StatusDiagMemProc(name) }
+
+// StatusDiagMemProc says "{name} high memory"
+// in the language of msgs.
+func (msgs Messages) StatusDiagMemProc(name string) string {
+	return Catalog.Format(msgs.locale, "statusDiagMemProc", map[string]any{"name": name})
+}
+
+// StatusDiagDisk says "Disk low, {free} free"
+// in the language the app shows.
+func StatusDiagDisk(free string) string { return In(i18n.Locale()).StatusDiagDisk(free) }
+
+// StatusDiagDisk says "Disk low, {free} free"
+// in the language of msgs.
+func (msgs Messages) StatusDiagDisk(free string) string {
+	return Catalog.Format(msgs.locale, "statusDiagDisk", map[string]any{"free": free})
+}
+
+// StatusDiagDiskIO says "Disk I/O busy"
+// in the language the app shows.
+func StatusDiagDiskIO() string { return In(i18n.Locale()).StatusDiagDiskIO() }
+
+// StatusDiagDiskIO says "Disk I/O busy"
+// in the language of msgs.
+func (msgs Messages) StatusDiagDiskIO() string {
+	return Catalog.Format(msgs.locale, "statusDiagDiskIO", nil)
+}
+
+// StatusDiagUptime says "Long uptime — restart recommended"
+// in the language the app shows.
+func StatusDiagUptime() string { return In(i18n.Locale()).StatusDiagUptime() }
+
+// StatusDiagUptime says "Long uptime — restart recommended"
+// in the language of msgs.
+func (msgs Messages) StatusDiagUptime() string {
+	return Catalog.Format(msgs.locale, "statusDiagUptime", nil)
+}
+
+// StatusDriveFree says "{drive} {free} free"
+// in the language the app shows.
+func StatusDriveFree(drive string, free string) string {
+	return In(i18n.Locale()).StatusDriveFree(drive, free)
+}
+
+// StatusDriveFree says "{drive} {free} free"
+// in the language of msgs.
+func (msgs Messages) StatusDriveFree(drive string, free string) string {
+	return Catalog.Format(msgs.locale, "statusDriveFree", map[string]any{"drive": drive, "free": free})
+}

@@ -190,5 +190,14 @@
   "cleanRunningApp": "Đang chạy ({process}) — nên đóng ứng dụng trước khi xoá bộ nhớ đệm.",
   "appsProtected": "thành phần hệ thống",
   "appsProtectedNote": "Runtime hệ thống, driver hoặc thành phần cốt lõi. Gỡ bỏ có thể làm hỏng các ứng dụng hoặc game khác.",
-  "appsProtectedConfirmDetail": "Đây là runtime hệ thống, driver hoặc thành phần cốt lõi của Windows. Gỡ bỏ có thể làm hỏng các ứng dụng hoặc game khác. Chỉ tiếp tục nếu bạn chắc chắn."
+  "appsProtectedConfirmDetail": "Đây là runtime hệ thống, driver hoặc thành phần cốt lõi của Windows. Gỡ bỏ có thể làm hỏng các ứng dụng hoặc game khác. Chỉ tiếp tục nếu bạn chắc chắn.",
+  "statusDiagOk": "Hệ thống ổn định",
+  "statusDiagCpu": "Tải CPU cao",
+  "statusDiagCpuProc": "{name} dùng nhiều CPU",
+  "statusDiagMem": "Áp lực RAM cao",
+  "statusDiagMemProc": "{name} dùng nhiều RAM",
+  "statusDiagDisk": "Ổ đĩa sắp đầy, còn {free}",
+  "statusDiagDiskIO": "Ổ đĩa đọc/ghi cao",
+  "statusDiagUptime": "Chạy liên tục lâu — nên khởi động lại",
+  "statusDriveFree": "{drive} trống {free}"
 }

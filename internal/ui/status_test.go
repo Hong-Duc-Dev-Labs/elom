@@ -87,6 +87,26 @@ func TestStatusPageWaitsForFirstSample(t *testing.T) {
 	}
 }
 
+func TestStatusPageRendersDiagnosisAndMultiDrive(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "status"
+	snap := sampleSnapshot()
+	snap.Diagnosis = metrics.Diagnosis{Kind: "cpu", Target: "chrome.exe"}
+	snap.Drives = []metrics.Drive{
+		{Mount: "C:", Total: 512_000_000_000, Free: 120_000_000_000},
+		{Mount: "D:", Total: 1_000_000_000_000, Free: 450_000_000_000},
+	}
+	a.status = snap
+
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"chrome.exe high CPU", "C: 120.0 GB free", "D: 450.0 GB free"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+}
+
 func TestFormatUptime(t *testing.T) {
 	if got := formatUptime(90 * time.Minute); got != "1h 30m" {
 		t.Errorf("formatUptime = %q", got)
