@@ -23,6 +23,23 @@ func TestTaskTableIsComplete(t *testing.T) {
 			t.Errorf("%s has no timeout", task.Op)
 		}
 	}
+	for _, want := range []string{"component.cleanup", "disk.health", "store.reset", "logs.system"} {
+		if !seen[want] {
+			t.Errorf("missing expected task %q", want)
+		}
+	}
+	if task, ok := Find("component.cleanup"); !ok || !task.Admin || !task.Danger {
+		t.Errorf("component.cleanup = %+v, want Admin=true Danger=true", task)
+	}
+	if task, ok := Find("disk.health"); !ok || task.Admin {
+		t.Errorf("disk.health = %+v, want Admin=false", task)
+	}
+	if task, ok := Find("store.reset"); !ok || task.Admin {
+		t.Errorf("store.reset = %+v, want Admin=false", task)
+	}
+	if task, ok := Find("logs.system"); !ok || !task.Admin {
+		t.Errorf("logs.system = %+v, want Admin=true", task)
+	}
 }
 
 func TestValidate(t *testing.T) {
