@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"elom/internal/core/apps"
+	"elom/internal/core/winget"
 )
 
 func TestListReportsPackagedFailure(t *testing.T) {
@@ -152,5 +153,77 @@ func TestLeftoversSiblingGuardInService(t *testing.T) {
 	got := sw.Leftovers(apps.App{ID: "idea", Name: "IntelliJ IDEA", Publisher: "JetBrains s.r.o."})
 	if len(got) != 1 || got[0].Path != ideaDir {
 		t.Fatalf("leftovers = %+v, want only %s (publisher root protected by sibling)", got, ideaDir)
+	}
+}
+
+func TestSoftwareListCacheAndInvalidation(t *testing.T) {
+	regCalls, pkgCalls := 0, 0
+	sw := &Software{
+		CacheTTL: time.Minute,
+		EnumerateRegistry: func() ([]apps.App, error) {
+			regCalls++
+			return []apps.App{{ID: "a", Name: "Alpha"}}, nil
+		},
+		EnumeratePackaged: func(context.Context) ([]apps.App, error) {
+			pkgCalls++
+			return []apps.App{{ID: "b", Name: "Beta"}}, nil
+		},
+		ApplyUpdateFn: func(context.Context, string, func(string)) error {
+			return nil
+		},
+	}
+
+	if _, _, err := sw.List(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := sw.List(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if regCalls != 1 || pkgCalls != 1 {
+		t.Fatalf("cache missed: regCalls=%d pkgCalls=%d, want 1 each", regCalls, pkgCalls)
+	}
+
+	// Refresh forces a new enumeration.
+	if _, _, err := sw.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if regCalls != 2 || pkgCalls != 2 {
+		t.Fatalf("Refresh did not bypass cache: regCalls=%d pkgCalls=%d", regCalls, pkgCalls)
+	}
+
+	// ApplyUpdate invalidates the cache on success.
+	if err := sw.ApplyUpdate(context.Background(), "Demo.Pkg", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := sw.List(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if regCalls != 3 || pkgCalls != 3 {
+		t.Fatalf("ApplyUpdate did not invalidate cache: regCalls=%d pkgCalls=%d", regCalls, pkgCalls)
+	}
+}
+
+func TestSoftwareUpdateAllSequentialAndCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var ran []string
+	sw := &Software{
+		ApplyUpdateFn: func(_ context.Context, id string, _ func(string)) error {
+			ran = append(ran, id)
+			if id == "Pkg.One" {
+				cancel()
+			}
+			return nil
+		},
+	}
+	updates := []winget.Upgrade{
+		{ID: "Pkg.One", Name: "One"},
+		{ID: "Pkg.Two", Name: "Two"},
+		{ID: "Pkg.Three", Name: "Three"},
+	}
+	results := sw.UpdateAll(ctx, updates, nil, nil)
+	if len(results) != 1 || len(ran) != 1 || ran[0] != "Pkg.One" {
+		t.Fatalf("UpdateAll did not stop after cancel: ran=%v results=%+v", ran, results)
 	}
 }

@@ -3,10 +3,14 @@
 package startup
 
 import (
+	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -67,7 +71,22 @@ func Enumerate() ([]Entry, error) {
 		k.Close()
 	}
 	out = append(out, folderEntries()...)
+	out = append(out, scheduledTaskEntries()...)
 	return out, nil
+}
+
+// scheduledTaskEntries audits logon Scheduled Tasks in read-only mode. Failures
+// are non-fatal so Run keys and Startup folders still load reliably.
+func scheduledTaskEntries() []Entry {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "schtasks.exe", "/Query", "/FO", "CSV", "/V")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	data, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	return ParseScheduledTasksCSV(data)
 }
 
 // readApproved returns the StartupApproved blobs by lower-cased value name,

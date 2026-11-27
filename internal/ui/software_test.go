@@ -118,7 +118,31 @@ func TestSoftwareUpdatesSection(t *testing.T) {
 	}
 	tt := NewTester(a.View, 1180, 760)
 	texts := strings.Join(tt.Texts(), "\n")
-	for _, want := range []string{"Updates", "Git", "Git.Git", "2.45.1 → 2.46.0"} {
+	for _, want := range []string{"Updates", "Update all", "Git", "Git.Git", "2.45.1 → 2.46.0"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+}
+
+func TestSoftwareUpdatesAllProgressAndCancel(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.appsTab = 1
+	a.software.loaded = true
+	a.software.updatesTried = true
+	a.software.updatingAll = true
+	a.software.updateAllDone = 1
+	a.software.updateAllTotal = 3
+	a.software.applying = "Git"
+	a.software.cancelUpdate = func() {}
+	a.software.updates = []winget.Upgrade{
+		{Name: "Git", ID: "Git.Git", Current: "2.45.1", Available: "2.46.0"},
+	}
+
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"Updating 1 of 3: Git…", "Cancel"} {
 		if !strings.Contains(texts, want) {
 			t.Errorf("missing %q in:\n%s", want, texts)
 		}

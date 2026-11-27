@@ -6,12 +6,25 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"elom/internal/core/apps"
 	"elom/internal/core/scan"
 	"elom/internal/core/winget"
 )
+
+// DefaultSoftwareCacheTTL is how long Software.List caches enumerated apps
+// before refreshing automatically. Mutations (Uninstall, ApplyUpdate) always
+// invalidate the cache immediately.
+const DefaultSoftwareCacheTTL = 5 * time.Minute
+
+// UpdateAllResult records the outcome of updating one package in UpdateAll.
+type UpdateAllResult struct {
+	ID   string
+	Name string
+	Err  string
+}
 
 // Software lists apps, runs their uninstallers and finds what they leave.
 type Software struct {
@@ -25,14 +38,53 @@ type Software struct {
 	// PowerShell; tests replace them.
 	EnumerateRegistry func() ([]apps.App, error)
 	EnumeratePackaged func(context.Context) ([]apps.App, error)
+	// ApplyUpdateFn overrides winget.Apply; tests replace it.
+	ApplyUpdateFn func(context.Context, string, func(string)) error
 	// Measure sizes a leftover; tests replace it.
 	Measure func(string) int64
+	// CacheTTL overrides DefaultSoftwareCacheTTL when > 0.
+	CacheTTL time.Duration
+
+	cacheMu        sync.Mutex
+	cachedList     []apps.App
+	cachedWarnings []string
+	cachedAt       time.Time
+}
+
+// InvalidateCache clears the cached app list so the next List call re-scans.
+func (s *Software) InvalidateCache() {
+	s.cacheMu.Lock()
+	s.cachedList = nil
+	s.cachedWarnings = nil
+	s.cachedAt = time.Time{}
+	s.cacheMu.Unlock()
+}
+
+// Refresh invalidates the cache and performs a fresh enumeration.
+func (s *Software) Refresh(ctx context.Context) ([]apps.App, []string, error) {
+	s.InvalidateCache()
+	return s.List(ctx)
 }
 
 // List returns registry apps, and packaged apps when PowerShell answers.
+// Results are cached in memory until CacheTTL expires or InvalidateCache is
+// called (for example after Uninstall, ApplyUpdate, or user Refresh).
 // A packaged-app failure is not fatal, but it is reported as a warning so the
 // list does not silently look complete.
 func (s *Software) List(ctx context.Context) ([]apps.App, []string, error) {
+	ttl := s.CacheTTL
+	if ttl <= 0 {
+		ttl = DefaultSoftwareCacheTTL
+	}
+	s.cacheMu.Lock()
+	if !s.cachedAt.IsZero() && time.Since(s.cachedAt) < ttl {
+		list := append([]apps.App(nil), s.cachedList...)
+		warnings := append([]string(nil), s.cachedWarnings...)
+		s.cacheMu.Unlock()
+		return list, warnings, nil
+	}
+	s.cacheMu.Unlock()
+
 	registry := s.EnumerateRegistry
 	if registry == nil {
 		registry = apps.Enumerate
@@ -52,11 +104,20 @@ func (s *Software) List(ctx context.Context) ([]apps.App, []string, error) {
 		list = append(list, packaged...)
 	}
 	apps.SortApps(list)
+
+	s.cacheMu.Lock()
+	s.cachedList = append([]apps.App(nil), list...)
+	s.cachedWarnings = append([]string(nil), warnings...)
+	s.cachedAt = time.Now()
+	s.cacheMu.Unlock()
+
 	return list, warnings, nil
 }
 
-// Uninstall runs the app's own uninstaller, streaming its output.
+// Uninstall runs the app's own uninstaller, streaming its output, and
+// invalidates the app scan cache.
 func (s *Software) Uninstall(ctx context.Context, app apps.App, onLine func(string)) error {
+	defer s.InvalidateCache()
 	return apps.RunUninstall(ctx, app.UninstallCommand(), onLine)
 }
 
@@ -169,9 +230,39 @@ func (s *Software) Updates(ctx context.Context) ([]winget.Upgrade, error) {
 	return winget.List(ctx)
 }
 
-// ApplyUpdate updates one package by id, streaming winget's output.
+// ApplyUpdate updates one package by id, streaming winget's output, and
+// invalidates the app scan cache on completion.
 func (s *Software) ApplyUpdate(ctx context.Context, id string, onLine func(string)) error {
-	return winget.Apply(ctx, id, onLine)
+	fn := s.ApplyUpdateFn
+	if fn == nil {
+		fn = winget.Apply
+	}
+	err := fn(ctx, id, onLine)
+	if err == nil {
+		s.InvalidateCache()
+	}
+	return err
+}
+
+// UpdateAll updates packages sequentially, stopping early if ctx is cancelled.
+// Each completed package is recorded in the returned slice.
+func (s *Software) UpdateAll(ctx context.Context, updates []winget.Upgrade, onProgress func(index, total int, u winget.Upgrade), onLine func(string)) []UpdateAllResult {
+	results := make([]UpdateAllResult, 0, len(updates))
+	for i, u := range updates {
+		if ctx.Err() != nil {
+			break
+		}
+		if onProgress != nil {
+			onProgress(i+1, len(updates), u)
+		}
+		err := s.ApplyUpdate(ctx, u.ID, onLine)
+		res := UpdateAllResult{ID: u.ID, Name: u.Name}
+		if err != nil {
+			res.Err = err.Error()
+		}
+		results = append(results, res)
+	}
+	return results
 }
 
 // RootsFromUser fills the leftover roots from the current user's environment.

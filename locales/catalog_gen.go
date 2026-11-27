@@ -2468,3 +2468,69 @@ func StatusSortMem() string { return In(i18n.Locale()).StatusSortMem() }
 func (msgs Messages) StatusSortMem() string {
 	return Catalog.Format(msgs.locale, "statusSortMem", nil)
 }
+
+// SoftwareUpdateAll says "Update all"
+// in the language the app shows.
+func SoftwareUpdateAll() string { return In(i18n.Locale()).SoftwareUpdateAll() }
+
+// SoftwareUpdateAll says "Update all"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAll() string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAll", nil)
+}
+
+// SoftwareUpdatingAll says "Updating {done, number, integer} of {total, number, integer}: {name}…"
+// in the language the app shows.
+func SoftwareUpdatingAll(done int, total int, name string) string {
+	return In(i18n.Locale()).SoftwareUpdatingAll(done, total, name)
+}
+
+// SoftwareUpdatingAll says "Updating {done, number, integer} of {total, number, integer}: {name}…"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdatingAll(done int, total int, name string) string {
+	return Catalog.Format(msgs.locale, "softwareUpdatingAll", map[string]any{"done": done, "total": total, "name": name})
+}
+
+// SoftwareUpdateAllDone says "{ok, number, integer} updated, {failed, number, integer} failed"
+// in the language the app shows.
+func SoftwareUpdateAllDone(ok int, failed int) string {
+	return In(i18n.Locale()).SoftwareUpdateAllDone(ok, failed)
+}
+
+// SoftwareUpdateAllDone says "{ok, number, integer} updated, {failed, number, integer} failed"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAllDone(ok int, failed int) string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAllDone", map[string]any{"ok": ok, "failed": failed})
+}
+
+// SoftwareUpdateAllCancelled says "Update cancelled ({ok, number, integer} updated)"
+// in the language the app shows.
+func SoftwareUpdateAllCancelled(ok int) string {
+	return In(i18n.Locale()).SoftwareUpdateAllCancelled(ok)
+}
+
+// SoftwareUpdateAllCancelled says "Update cancelled ({ok, number, integer} updated)"
+// in the language of msgs.
+func (msgs Messages) SoftwareUpdateAllCancelled(ok int) string {
+	return Catalog.Format(msgs.locale, "softwareUpdateAllCancelled", map[string]any{"ok": ok})
+}
+
+// StartupSourceScheduledTask says "Scheduled Task"
+// in the language the app shows.
+func StartupSourceScheduledTask() string { return In(i18n.Locale()).StartupSourceScheduledTask() }
+
+// StartupSourceScheduledTask says "Scheduled Task"
+// in the language of msgs.
+func (msgs Messages) StartupSourceScheduledTask() string {
+	return Catalog.Format(msgs.locale, "startupSourceScheduledTask", nil)
+}
+
+// StartupScheduledTaskNote says "Read-only audit — manage in Task Scheduler."
+// in the language the app shows.
+func StartupScheduledTaskNote() string { return In(i18n.Locale()).StartupScheduledTaskNote() }
+
+// StartupScheduledTaskNote says "Read-only audit — manage in Task Scheduler."
+// in the language of msgs.
+func (msgs Messages) StartupScheduledTaskNote() string {
+	return Catalog.Format(msgs.locale, "startupScheduledTaskNote", nil)
+}

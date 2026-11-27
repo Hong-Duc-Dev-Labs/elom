@@ -37,12 +37,17 @@ type softwareState struct {
 	chosen         map[string]bool
 	active         apps.App
 
-	updates      []winget.Upgrade
-	updatesTried bool
-	checking     bool
-	applying     string
-	updatesErr   string
-	updateLog    []string
+	updates          []winget.Upgrade
+	updatesTried     bool
+	checking         bool
+	applying         string
+	updatingAll      bool
+	updateAllDone    int
+	updateAllTotal   int
+	cancelUpdate     context.CancelFunc
+	updateAllSummary string
+	updatesErr       string
+	updateLog        []string
 	warnings     []string
 	icons        map[string]*Bitmap
 
@@ -140,15 +145,37 @@ func (a *App) updatesSection(c *Context, pal palette) {
 				Text(c, locales.SoftwareChecking()).FontSize(11).TextColor(quietText())
 				return
 			}
-			if ghostPill(c, locales.SoftwareCheckUpdates()).Clicked() {
+			if st.updatingAll && st.cancelUpdate != nil {
+				if ghostPill(c, locales.CleanCancel()).Clicked() {
+					st.cancelUpdate()
+				}
+				return
+			}
+			if len(st.updates) > 0 && st.applying == "" {
+				if primaryPill(c, locales.SoftwareUpdateAll()).Clicked() {
+					a.applyAllUpdates()
+				}
+			}
+			checkBtn := ghostPill(c, locales.SoftwareCheckUpdates())
+			if st.applying != "" {
+				checkBtn.Disabled(true)
+			} else if checkBtn.Clicked() {
 				a.checkUpdates()
 			}
 		})
-		if st.applying != "" {
+		if st.updatingAll {
+			Text(c, locales.SoftwareUpdatingAll(st.updateAllDone, st.updateAllTotal, st.applying)).FontSize(11.5).TextColor(softText())
+			for _, line := range tail(st.updateLog, 3) {
+				Text(c, trim(line, 100)).FontSize(11).TextColor(quietText()).NoWrap()
+			}
+		} else if st.applying != "" {
 			Text(c, locales.SoftwareApplying(st.applying)).FontSize(11.5).TextColor(softText())
 			for _, line := range tail(st.updateLog, 3) {
 				Text(c, trim(line, 100)).FontSize(11).TextColor(quietText()).NoWrap()
 			}
+		}
+		if st.updateAllSummary != "" && !st.updatingAll {
+			Text(c, st.updateAllSummary).FontSize(11.5).TextColor(appTheme.Success)
 		}
 		if st.updatesErr != "" {
 			Text(c, locales.SoftwareUpdatesError(st.updatesErr)).FontSize(11.5).TextColor(appTheme.Danger)
@@ -171,7 +198,7 @@ func (a *App) updatesSection(c *Context, pal palette) {
 				})
 				Text(c, update.Current+" → "+update.Available).FontSize(11).TextColor(softText()).NoWrap()
 				updateButton := ghostPill(c, locales.SoftwareUpdate())
-				if st.applying != "" {
+				if st.applying != "" || st.updatingAll {
 					updateButton.Disabled(true)
 				} else if updateButton.Clicked() {
 					a.applyUpdate(update)
@@ -205,12 +232,13 @@ func (a *App) checkUpdates() {
 }
 
 func (a *App) applyUpdate(update winget.Upgrade) {
-	if a.software.applying != "" {
+	if a.software.applying != "" || a.software.updatingAll {
 		return
 	}
 	a.software.applying = update.Name
 	a.software.updateLog = nil
 	a.software.updatesErr = ""
+	a.software.updateAllSummary = ""
 	go func() {
 		err := a.Software.ApplyUpdate(context.Background(), update.ID, func(line string) {
 			a.Win.Update(func() {
@@ -225,6 +253,66 @@ func (a *App) applyUpdate(update winget.Upgrade) {
 			if err != nil {
 				a.software.updatesErr = err.Error()
 				return
+			}
+			a.software.loaded = false
+			a.checkUpdates()
+		})
+	}()
+}
+
+// applyAllUpdates runs every available winget update sequentially and allows
+// the user to cancel between or during packages.
+func (a *App) applyAllUpdates() {
+	if a.software.applying != "" || a.software.updatingAll || len(a.software.updates) == 0 || a.Win == nil {
+		return
+	}
+	updates := append([]winget.Upgrade(nil), a.software.updates...)
+	ctx, cancel := context.WithCancel(context.Background())
+	a.software.updatingAll = true
+	a.software.updateAllDone = 0
+	a.software.updateAllTotal = len(updates)
+	a.software.cancelUpdate = cancel
+	a.software.applying = updates[0].Name
+	a.software.updateLog = nil
+	a.software.updatesErr = ""
+	a.software.updateAllSummary = ""
+
+	go func() {
+		defer cancel()
+		results := a.Software.UpdateAll(ctx, updates, func(idx, total int, u winget.Upgrade) {
+			a.Win.Update(func() {
+				a.software.updateAllDone = idx
+				a.software.updateAllTotal = total
+				a.software.applying = u.Name
+			})
+		}, func(line string) {
+			a.Win.Update(func() {
+				a.software.updateLog = append(a.software.updateLog, line)
+				if len(a.software.updateLog) > 40 {
+					a.software.updateLog = a.software.updateLog[len(a.software.updateLog)-40:]
+				}
+			})
+		})
+		okCount, failCount := 0, 0
+		for _, r := range results {
+			if r.Err == "" {
+				okCount++
+			} else {
+				failCount++
+			}
+		}
+		cancelled := ctx.Err() != nil
+		a.Win.Update(func() {
+			a.software.updatingAll = false
+			a.software.applying = ""
+			a.software.cancelUpdate = nil
+			if cancelled {
+				a.software.updateAllSummary = locales.SoftwareUpdateAllCancelled(okCount)
+			} else {
+				a.software.updateAllSummary = locales.SoftwareUpdateAllDone(okCount, failCount)
+			}
+			if okCount > 0 {
+				a.software.loaded = false
 			}
 			a.checkUpdates()
 		})
@@ -401,6 +489,7 @@ func (a *App) finishUninstall(ctx context.Context, app apps.App, grace time.Dura
 	removed := a.Software.AwaitRemoval(ctx, app, grace, 2*time.Second)
 	var leftovers []apps.Leftover
 	if removed {
+		a.Software.InvalidateCache()
 		leftovers = a.Software.Leftovers(app)
 	}
 	a.Win.Update(func() {
@@ -410,6 +499,9 @@ func (a *App) finishUninstall(ctx context.Context, app apps.App, grace time.Dura
 		a.software.stillInstalled = !removed
 		a.software.leftovers = leftovers
 		a.software.chosen = map[string]bool{}
+		if removed {
+			a.software.loaded = false
+		}
 	})
 }
 

@@ -84,3 +84,27 @@ func TestMachineEntryGoesThroughElevation(t *testing.T) {
 		t.Fatal("the machine entry was not routed through elevation")
 	}
 }
+
+func TestStartupScheduledTaskRendersReadOnlyAudit(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.appsTab = 2
+	a.startup.loaded = true
+	a.startup.entries = []startup.Entry{
+		{
+			Name:     "HelperSync",
+			Command:  `C:\Tools\helper.exe`,
+			Source:   startup.SourceScheduledTask,
+			Scope:    "user",
+			Enabled:  true,
+			Writable: false,
+		},
+	}
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"HelperSync", "Scheduled Task", "Task Scheduler"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+}

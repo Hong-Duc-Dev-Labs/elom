@@ -3,6 +3,13 @@
 // values the shell reads, not by deleting the command.
 package startup
 
+import (
+	"bytes"
+	"encoding/csv"
+	"io"
+	"strings"
+)
+
 // Entry is one startup item.
 type Entry struct {
 	// Name is the value name under the Run key, or the shortcut's file name.
@@ -42,4 +49,95 @@ func ApprovedBlob(enabled bool) []byte {
 	}
 	blob[0] = 3
 	return blob
+}
+
+// SourceScheduledTask is the stable Source identifier for logon scheduled tasks
+// listed in read-only audit mode.
+const SourceScheduledTask = "Scheduled Task"
+
+// ParseScheduledTasksCSV parses `schtasks /Query /FO CSV /V` output and
+// returns non-Microsoft tasks triggered at user logon in read-only audit mode.
+func ParseScheduledTasksCSV(data []byte) []Entry {
+	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
+	r := csv.NewReader(bytes.NewReader(data))
+	r.FieldsPerRecord = -1
+	r.LazyQuotes = true
+
+	header, err := r.Read()
+	if err != nil {
+		return nil
+	}
+	colTaskName, colStatus, colSchedule, colRun := -1, -1, -1, -1
+	for i, h := range header {
+		key := strings.ToLower(strings.TrimSpace(h))
+		switch key {
+		case "taskname":
+			colTaskName = i
+		case "status":
+			colStatus = i
+		case "schedule type":
+			colSchedule = i
+		case "task to run":
+			colRun = i
+		}
+	}
+	if colTaskName < 0 || colSchedule < 0 || colRun < 0 {
+		return nil
+	}
+
+	seen := map[string]bool{}
+	var out []Entry
+	for {
+		rec, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+		get := func(idx int) string {
+			if idx < 0 || idx >= len(rec) {
+				return ""
+			}
+			return strings.TrimSpace(rec[idx])
+		}
+		taskName := get(colTaskName)
+		if taskName == "" || strings.EqualFold(taskName, "TaskName") {
+			continue
+		}
+		// Skip built-in Windows system tasks so the audit stays focused on
+		// user and third-party logon tasks.
+		lowerName := strings.ToLower(taskName)
+		if strings.HasPrefix(lowerName, `\microsoft\windows\`) || strings.HasPrefix(lowerName, `microsoft\windows\`) {
+			continue
+		}
+		sched := strings.ToLower(get(colSchedule))
+		if !strings.Contains(sched, "logon") && !strings.Contains(sched, "log on") {
+			continue
+		}
+		cmd := get(colRun)
+		if cmd == "" || strings.EqualFold(cmd, "N/A") {
+			continue
+		}
+		if seen[lowerName] {
+			continue
+		}
+		seen[lowerName] = true
+
+		displayName := strings.TrimPrefix(taskName, `\`)
+		if idx := strings.LastIndex(displayName, `\`); idx >= 0 && idx+1 < len(displayName) {
+			displayName = displayName[idx+1:]
+		}
+		enabled := !strings.EqualFold(get(colStatus), "disabled")
+		out = append(out, Entry{
+			Name:     displayName,
+			Command:  cmd,
+			Source:   SourceScheduledTask,
+			Scope:    "user",
+			Enabled:  enabled,
+			Writable: false,
+			Note:     "logon scheduled task (read-only audit)",
+		})
+	}
+	return out
 }

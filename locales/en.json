@@ -240,5 +240,11 @@
   "statusResume": "Resume",
   "statusPaused": "Paused",
   "statusSortCpu": "CPU",
-  "statusSortMem": "Memory"
+  "statusSortMem": "Memory",
+  "softwareUpdateAll": "Update all",
+  "softwareUpdatingAll": "Updating {done, number, integer} of {total, number, integer}: {name}…",
+  "softwareUpdateAllDone": "{ok, number, integer} updated, {failed, number, integer} failed",
+  "softwareUpdateAllCancelled": "Update cancelled ({ok, number, integer} updated)",
+  "startupSourceScheduledTask": "Scheduled Task",
+  "startupScheduledTaskNote": "Read-only audit — manage in Task Scheduler."
 }
