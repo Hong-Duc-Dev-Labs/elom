@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
@@ -250,7 +251,11 @@ func (a *App) startPurgeScan() {
 	a.purge.cancel = cancel
 	a.purge.progress = purge.Progress{}
 	go func() {
+		throttle := newUIThrottle(80 * time.Millisecond)
 		progress := func(p purge.Progress) {
+			if !throttle.allow() {
+				return
+			}
 			a.Win.Update(func() { a.purge.progress = p })
 		}
 		found, err := a.Purge.Scan(ctx, roots, progress)

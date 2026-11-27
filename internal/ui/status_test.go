@@ -191,3 +191,17 @@ func TestSortedProcessesCPUAndMemory(t *testing.T) {
 		t.Errorf("Memory sort put %q first", byMem[0].Name)
 	}
 }
+
+func TestUIThrottleLimitsRate(t *testing.T) {
+	th := newUIThrottle(40 * time.Millisecond)
+	if !th.allow() {
+		t.Fatal("first call must be allowed")
+	}
+	if th.allow() {
+		t.Fatal("immediate second call must be throttled")
+	}
+	time.Sleep(50 * time.Millisecond)
+	if !th.allow() {
+		t.Fatal("call after interval must be allowed")
+	}
+}

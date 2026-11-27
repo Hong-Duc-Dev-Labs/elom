@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
@@ -52,6 +53,13 @@ type analyzeState struct {
 	// either changes.
 	tilesNode *scan.Node
 	tilesRect Rect
+
+	// Memoized result of visibleChildren() so hover/scroll frames skip sorting.
+	visCache      []*scan.Node
+	visNode       *scan.Node
+	visQuery      string
+	visSortByName bool
+	visChildLen   int
 }
 
 func newAnalyzeState() analyzeState {
@@ -467,6 +475,13 @@ func (st *analyzeState) visibleChildren() []*scan.Node {
 	if st.current == nil || len(st.current.Children) == 0 {
 		return nil
 	}
+	if st.visCache != nil &&
+		st.visNode == st.current &&
+		st.visChildLen == len(st.current.Children) &&
+		st.visQuery == st.query &&
+		st.visSortByName == st.sortByName {
+		return st.visCache
+	}
 	q := strings.ToLower(strings.TrimSpace(st.query))
 	out := make([]*scan.Node, 0, len(st.current.Children))
 	for _, child := range st.current.Children {
@@ -487,6 +502,11 @@ func (st *analyzeState) visibleChildren() []*scan.Node {
 			return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
 		})
 	}
+	st.visCache = out
+	st.visNode = st.current
+	st.visChildLen = len(st.current.Children)
+	st.visQuery = st.query
+	st.visSortByName = st.sortByName
 	return out
 }
 
@@ -561,7 +581,11 @@ func (a *App) startIndexForce(root string, force bool) {
 	st.progress = scan.IndexProgress{}
 	limits := scan.Limits{MaxDepth: a.Settings.MaxScanDepth, MaxEntries: a.Settings.MaxScanEntries}
 	go func() {
+		throttle := newUIThrottle(80 * time.Millisecond)
 		progress := func(p scan.IndexProgress) {
+			if !throttle.allow() {
+				return
+			}
 			a.Win.Update(func() { a.analyze.progress = p })
 		}
 		node, err := scan.Index(ctx, root, limits, progress)

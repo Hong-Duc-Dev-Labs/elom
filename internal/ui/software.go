@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/egoist/mygo"
@@ -48,12 +49,21 @@ type softwareState struct {
 	updateAllSummary string
 	updatesErr       string
 	updateLog        []string
-	warnings     []string
-	icons        map[string]*Bitmap
+	warnings   []string
+	icons      map[string]*Bitmap
+	iconQueued map[string]bool
+	iconQueue  chan string
 
 	// rows is the app list; byName sorts it by name instead of by size.
 	rows   ListState
 	byName bool
+
+	// Memoized result of shown() so hover/scroll frames skip cloning & sorting.
+	shownCache  []apps.App
+	shownQuery  string
+	shownByName bool
+	shownLen    int
+	shownPtr    *apps.App
 
 	// Orphaned AppData scanner state (review-first, always unchecked by default).
 	orphaned       []apps.Leftover
@@ -71,32 +81,83 @@ func newSoftwareState() softwareState {
 		chosen:       map[string]bool{},
 		orphanChosen: map[string]bool{},
 		icons:        map[string]*Bitmap{},
+		iconQueued:   map[string]bool{},
 	}
 }
 
-// iconFor returns the app's icon, reading it once per path. MyGo draws
-// Explorer's icon for a file or a shell item; a failure is cached as nil so a
-// missing icon is not retried every frame.
+// iconFor returns the cached app icon without blocking the UI thread. Missing
+// icons are resolved asynchronously in batches so neither os.Stat nor
+// mygo.Shell.FileIcon / DecodeBitmap ever stalls a frame.
 func (a *App) iconFor(app apps.App) *Bitmap {
-	path := iconPath(app)
-	if path == "" {
+	raw := app.Icon
+	if raw == "" {
 		return nil
 	}
-	if icon, ok := a.software.icons[path]; ok {
+	if icon, ok := a.software.icons[raw]; ok {
 		return icon
 	}
-	png, err := mygo.Shell.FileIcon(path, 32)
-	if err != nil {
-		a.software.icons[path] = nil
+	if a.Win == nil {
 		return nil
 	}
-	bitmap, err := DecodeBitmap(png)
-	if err != nil {
-		a.software.icons[path] = nil
+	if a.software.iconQueued == nil {
+		a.software.iconQueued = map[string]bool{}
+	}
+	if a.software.iconQueued[raw] {
 		return nil
 	}
-	a.software.icons[path] = bitmap
-	return bitmap
+	a.software.iconQueued[raw] = true
+	a.ensureIconWorker()
+	select {
+	case a.software.iconQueue <- raw:
+	default:
+		delete(a.software.iconQueued, raw)
+	}
+	return nil
+}
+
+func (a *App) ensureIconWorker() {
+	if a.software.iconQueue != nil {
+		return
+	}
+	ch := make(chan string, 256)
+	a.software.iconQueue = ch
+	go func() {
+		type resolved struct {
+			raw string
+			bmp *Bitmap
+		}
+		batch := make([]resolved, 0, 8)
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			items := append([]resolved(nil), batch...)
+			batch = batch[:0]
+			if a.Win == nil {
+				return
+			}
+			a.Win.Update(func() {
+				for _, it := range items {
+					a.software.icons[it.raw] = it.bmp
+					delete(a.software.iconQueued, it.raw)
+				}
+			})
+		}
+		for raw := range ch {
+			var bmp *Bitmap
+			if path := iconPath(apps.App{Icon: raw}); path != "" {
+				if png, err := mygo.Shell.FileIcon(path, 32); err == nil {
+					if decoded, err := DecodeBitmap(png); err == nil {
+						bmp = decoded
+					}
+				}
+			}
+			batch = append(batch, resolved{raw: raw, bmp: bmp})
+			if len(batch) >= 8 || len(ch) == 0 {
+				flush()
+			}
+		}
+	}()
 }
 
 // iconPath strips the ",0" index some uninstallers append to DisplayIcon.
@@ -240,15 +301,35 @@ func (a *App) applyUpdate(update winget.Upgrade) {
 	a.software.updatesErr = ""
 	a.software.updateAllSummary = ""
 	go func() {
+		var logMu sync.Mutex
+		var pending []string
+		throttle := newUIThrottle(80 * time.Millisecond)
 		err := a.Software.ApplyUpdate(context.Background(), update.ID, func(line string) {
+			logMu.Lock()
+			pending = append(pending, line)
+			if !throttle.allow() {
+				logMu.Unlock()
+				return
+			}
+			chunk := pending
+			pending = nil
+			logMu.Unlock()
 			a.Win.Update(func() {
-				a.software.updateLog = append(a.software.updateLog, line)
+				a.software.updateLog = append(a.software.updateLog, chunk...)
 				if len(a.software.updateLog) > 40 {
 					a.software.updateLog = a.software.updateLog[len(a.software.updateLog)-40:]
 				}
 			})
 		})
 		a.Win.Update(func() {
+			logMu.Lock()
+			if len(pending) > 0 {
+				a.software.updateLog = append(a.software.updateLog, pending...)
+				if len(a.software.updateLog) > 40 {
+					a.software.updateLog = a.software.updateLog[len(a.software.updateLog)-40:]
+				}
+			}
+			logMu.Unlock()
 			a.software.applying = ""
 			if err != nil {
 				a.software.updatesErr = err.Error()
@@ -279,6 +360,9 @@ func (a *App) applyAllUpdates() {
 
 	go func() {
 		defer cancel()
+		var logMu sync.Mutex
+		var pending []string
+		throttle := newUIThrottle(80 * time.Millisecond)
 		results := a.Software.UpdateAll(ctx, updates, func(idx, total int, u winget.Upgrade) {
 			a.Win.Update(func() {
 				a.software.updateAllDone = idx
@@ -286,8 +370,17 @@ func (a *App) applyAllUpdates() {
 				a.software.applying = u.Name
 			})
 		}, func(line string) {
+			logMu.Lock()
+			pending = append(pending, line)
+			if !throttle.allow() {
+				logMu.Unlock()
+				return
+			}
+			chunk := pending
+			pending = nil
+			logMu.Unlock()
 			a.Win.Update(func() {
-				a.software.updateLog = append(a.software.updateLog, line)
+				a.software.updateLog = append(a.software.updateLog, chunk...)
 				if len(a.software.updateLog) > 40 {
 					a.software.updateLog = a.software.updateLog[len(a.software.updateLog)-40:]
 				}
@@ -303,6 +396,14 @@ func (a *App) applyAllUpdates() {
 		}
 		cancelled := ctx.Err() != nil
 		a.Win.Update(func() {
+			logMu.Lock()
+			if len(pending) > 0 {
+				a.software.updateLog = append(a.software.updateLog, pending...)
+				if len(a.software.updateLog) > 40 {
+					a.software.updateLog = a.software.updateLog[len(a.software.updateLog)-40:]
+				}
+			}
+			logMu.Unlock()
 			a.software.updatingAll = false
 			a.software.applying = ""
 			a.software.cancelUpdate = nil
@@ -451,14 +552,38 @@ func (a *App) uninstallApp(app apps.App) {
 		})
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
+		var logMu sync.Mutex
+		var pending []string
+		throttle := newUIThrottle(80 * time.Millisecond)
 		runErr := a.Software.Uninstall(ctx, app, func(line string) {
+			logMu.Lock()
+			pending = append(pending, line)
+			if !throttle.allow() {
+				logMu.Unlock()
+				return
+			}
+			chunk := pending
+			pending = nil
+			logMu.Unlock()
 			a.Win.Update(func() {
-				a.software.log = append(a.software.log, line)
+				a.software.log = append(a.software.log, chunk...)
 				if len(a.software.log) > 200 {
 					a.software.log = a.software.log[len(a.software.log)-200:]
 				}
 			})
 		})
+		logMu.Lock()
+		rem := pending
+		pending = nil
+		logMu.Unlock()
+		if len(rem) > 0 {
+			a.Win.Update(func() {
+				a.software.log = append(a.software.log, rem...)
+				if len(a.software.log) > 200 {
+					a.software.log = a.software.log[len(a.software.log)-200:]
+				}
+			})
+		}
 		if runErr != nil {
 			a.Win.Update(func() {
 				a.software.running = false

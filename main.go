@@ -94,8 +94,7 @@ func (m *mainApp) ready() {
 		TitleBarStyle: mygo.TitleBarHidden,
 		Content:         View(m.app.View),
 	})
-	m.app.Win = m.win
-	m.app.StartStatus()
+	m.app.AttachWindow(m.win)
 
 	// Elom is a window, not a system utility: closing it is how the user
 	// quits, and no tray icon, flyout, shortcut or sampler outlives it.

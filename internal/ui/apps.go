@@ -3,6 +3,7 @@ package ui
 import (
 	"sort"
 	"strings"
+	"unsafe"
 
 	. "github.com/egoist/mygo/ui"
 
@@ -115,8 +116,17 @@ func (a *App) refreshApps() {
 }
 
 // shown is the app list as the screen draws it: filtered by the search, then
-// sorted by size, largest first, or by name.
+// sorted by size, largest first, or by name. The result is memoized so
+// hover/scroll repaints do not clone and re-sort the full list every frame.
 func (st *softwareState) shown() []apps.App {
+	ptr := unsafe.SliceData(st.list)
+	if st.shownCache != nil &&
+		st.shownPtr == ptr &&
+		st.shownLen == len(st.list) &&
+		st.shownQuery == st.query &&
+		st.shownByName == st.byName {
+		return st.shownCache
+	}
 	list := append([]apps.App(nil), st.visible()...)
 	if st.byName {
 		sort.SliceStable(list, func(i, j int) bool {
@@ -125,6 +135,11 @@ func (st *softwareState) shown() []apps.App {
 	} else {
 		sort.SliceStable(list, func(i, j int) bool { return list[i].SizeBytes > list[j].SizeBytes })
 	}
+	st.shownCache = list
+	st.shownPtr = ptr
+	st.shownLen = len(st.list)
+	st.shownQuery = st.query
+	st.shownByName = st.byName
 	return list
 }
 

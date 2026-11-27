@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"image"
 	"math"
 	"sync"
 
@@ -66,9 +67,12 @@ func (k planetKind) speed() float64 {
 }
 
 // globeCell is the fixed part of one cell: where it sits on the sphere. It
-// does not depend on the angle.
+// does not depend on the angle. zTilted and lat are precomputed for globeTilt
+// so per-frame shading skips the tilt trig and math.Asin completely.
 type globeCell struct {
 	u, v, z float32
+	zTilted float32
+	lat     float64
 	inside  bool
 }
 
@@ -77,6 +81,15 @@ type globeKey struct{ cols, rows int }
 var globeCache sync.Map // globeKey -> []globeCell
 
 const globeTilt = 0.35
+
+var (
+	sinGlobeTilt = float32(math.Sin(globeTilt))
+	cosGlobeTilt = float32(math.Cos(globeTilt))
+)
+
+// planetAnimateEnabled is set by App.View before building a frame so hero
+// planets stop scheduling animation frames when the window is minimized/hidden.
+var planetAnimateEnabled = true
 
 func globeGeometry(cols, rows int) []globeCell {
 	key := globeKey{cols, rows}
@@ -92,8 +105,12 @@ func globeGeometry(cols, rows int) []globeCell {
 			cell := globeCell{u: u, v: v}
 			if rr <= 1 {
 				z := float32(math.Sqrt(float64(1 - rr)))
+				yTilted := v*cosGlobeTilt - z*sinGlobeTilt
+				zTilted := v*sinGlobeTilt + z*cosGlobeTilt
 				cell.inside = true
 				cell.z = z
+				cell.zTilted = zTilted
+				cell.lat = math.Asin(math.Max(-1, math.Min(1, float64(yTilted))))
 			}
 			cells[r*cols+c] = cell
 		}
@@ -103,7 +120,7 @@ func globeGeometry(cols, rows int) []globeCell {
 }
 
 // planet draws the screen's body: a rotating character globe, 160 DIPs or
-// larger turning at 20 Hz; smaller placeholders stay still.
+// larger turning at 8 Hz; smaller placeholders stay still.
 func planet(c *Context, size float32, pal palette) Element {
 	return Box(c).Size(size, size).Draw(func(p *Painter, r Rect) {
 		drawGlobe(p, r, pal)
@@ -114,32 +131,64 @@ func planet(c *Context, size float32, pal palette) Element {
 // shorter dot pitch so the mark is still a sphere at 28 DIP.
 func appMark(c *Context, size float32, pal palette) Element {
 	return Box(c).Size(size, size).Draw(func(p *Painter, r Rect) {
-		drawDots(p, r, pal, 0.7)
+		drawDots(p, r, pal, 0.7, false)
 	})
 }
 
 // drawGlobe paints the screen's body as a dot globe: a rotating surface at
-// 20 Hz for hero sizes, a still frame below.
+// 8 Hz for hero sizes when visible, a still frame below.
 func drawGlobe(p *Painter, r Rect, pal palette) {
 	size := min(r.W, r.H)
 	if size < 12 {
 		return
 	}
 	angle := 0.7
-	if size >= 150 && !p.Preferences().ReduceMotion {
-		p.AnimationFrameRate(20)
-		angle = float64(p.Now().UnixNano()) / 1e9 * pal.body.speed()
+	animated := false
+	if size >= 150 && !p.Preferences().ReduceMotion && planetAnimateEnabled {
+		p.AnimationFrameRate(8)
+		// Quantize to 125ms ticks so non-animation repaints (e.g. hover) reuse
+		// the already-rasterized bitmap without re-evaluating noise.
+		tick := p.Now().UnixMilli() / 125
+		angle = float64(tick) * 0.125 * pal.body.speed()
+		animated = true
 	}
-	drawDots(p, r, pal, angle)
+	drawDots(p, r, pal, angle, animated)
 }
 
-// drawDots paints the sphere as a Braille-style dot matrix: one dot per
-// sampled cell, at one pitch, about 64 dots across a hero. A Braille glyph
-// is the same 2x4 dot picture, but its line box leaves horizontal gaps
-// between rows; drawing the dots directly makes the surface evenly dense
-// and the limb round. Brightness becomes dot density through an ordered
-// threshold, so the tone changes without glyph steps.
-func drawDots(p *Painter, r Rect, pal palette, angle float64) {
+type staticGlobeKey struct {
+	body      planetKind
+	pixW      int
+	pixH      int
+	dotCols   int
+	scaleBits uint32
+	ink       [3]Color
+	angleBits uint64
+}
+
+type heroGlobeSlot struct {
+	mu        sync.Mutex
+	pixW      int
+	pixH      int
+	img       *image.RGBA
+	bmp       *Bitmap
+	body      planetKind
+	ink       [3]Color
+	angleBits uint64
+	dotCols   int
+	scaleBits uint32
+}
+
+var (
+	staticGlobeMu    sync.Mutex
+	staticGlobeCache = map[staticGlobeKey]*Bitmap{}
+	heroGlobe        heroGlobeSlot
+)
+
+// drawDots rasterizes the dot-matrix sphere into a compact RGBA bitmap and
+// draws it with a single Painter.Image call instead of ~2,600 Painter.Fill
+// commands per frame. Static globes are cached across frames; the hero globe
+// reuses one Bitmap in place via Bitmap.Update.
+func drawDots(p *Painter, r Rect, pal palette, angle float64, animated bool) {
 	size := min(r.W, r.H)
 	if size < 8 {
 		return
@@ -171,9 +220,91 @@ func drawDots(p *Painter, r Rect, pal palette, angle float64) {
 		// into white blobs. A half-step keeps the feature without the blob.
 		dotLit = min(pitch-0.5, dotBase+0.5)
 	}
-	dark := pal.ink[0]
 
-	geometry := globeGeometry(dotCols, dotRows)
+	gridW := float32(dotCols) * pitch
+	gridH := float32(dotRows) * pitch
+	x0 := float32(math.Round(float64(r.X + (r.W-gridW)/2)))
+	y0 := float32(math.Round(float64(r.Y + (r.H-gridH)/2)))
+	dst := Rect{X: x0, Y: y0, W: gridW, H: gridH}
+
+	scale := p.Scale()
+	if scale < 1 {
+		scale = 1
+	} else if scale > 2 {
+		scale = 2
+	}
+	pixW := max(1, int(math.Ceil(float64(gridW*scale))))
+	pixH := max(1, int(math.Ceil(float64(gridH*scale))))
+	angleBits := math.Float64bits(angle)
+	scaleBits := math.Float32bits(scale)
+
+	if !animated {
+		key := staticGlobeKey{
+			body:      pal.body,
+			pixW:      pixW,
+			pixH:      pixH,
+			dotCols:   dotCols,
+			scaleBits: scaleBits,
+			ink:       pal.ink,
+			angleBits: angleBits,
+		}
+		staticGlobeMu.Lock()
+		bmp, ok := staticGlobeCache[key]
+		staticGlobeMu.Unlock()
+		if ok {
+			p.Image(bmp, dst, Contain)
+			return
+		}
+		img := image.NewRGBA(image.Rect(0, 0, pixW, pixH))
+		rasterizeGlobeDots(img, pal, size, dotCols, dotRows, pitch, dotBase, dotLit, scale, angle)
+		bmp = NewBitmap(img)
+		staticGlobeMu.Lock()
+		if len(staticGlobeCache) >= 64 {
+			clear(staticGlobeCache)
+		}
+		staticGlobeCache[key] = bmp
+		staticGlobeMu.Unlock()
+		p.Image(bmp, dst, Contain)
+		return
+	}
+
+	heroGlobe.mu.Lock()
+	defer heroGlobe.mu.Unlock()
+	if heroGlobe.bmp != nil &&
+		heroGlobe.pixW == pixW &&
+		heroGlobe.pixH == pixH &&
+		heroGlobe.body == pal.body &&
+		heroGlobe.ink == pal.ink &&
+		heroGlobe.angleBits == angleBits &&
+		heroGlobe.dotCols == dotCols &&
+		heroGlobe.scaleBits == scaleBits {
+		p.Image(heroGlobe.bmp, dst, Contain)
+		return
+	}
+	if heroGlobe.img == nil || heroGlobe.pixW != pixW || heroGlobe.pixH != pixH {
+		heroGlobe.img = image.NewRGBA(image.Rect(0, 0, pixW, pixH))
+		heroGlobe.pixW = pixW
+		heroGlobe.pixH = pixH
+		heroGlobe.bmp = nil
+	} else {
+		clear(heroGlobe.img.Pix)
+	}
+	rasterizeGlobeDots(heroGlobe.img, pal, size, dotCols, dotRows, pitch, dotBase, dotLit, scale, angle)
+	if heroGlobe.bmp == nil {
+		heroGlobe.bmp = NewBitmap(heroGlobe.img)
+	} else {
+		heroGlobe.bmp.Update(heroGlobe.img)
+	}
+	heroGlobe.body = pal.body
+	heroGlobe.ink = pal.ink
+	heroGlobe.angleBits = angleBits
+	heroGlobe.dotCols = dotCols
+	heroGlobe.scaleBits = scaleBits
+	p.Image(heroGlobe.bmp, dst, Contain)
+}
+
+func rasterizeGlobeDots(img *image.RGBA, pal palette, size float32, dotCols, dotRows int, pitch, dotBase, dotLit, scale float32, angle float64) {
+	dark := pal.ink[0]
 	// The floor is darker than the palette's mid ink so oceans read as
 	// water instead of a flat field; every dot is still present.
 	base := pal.ink[0].Mix(pal.ink[1], 0.35)
@@ -183,22 +314,29 @@ func drawDots(p *Painter, r Rect, pal palette, angle float64) {
 		base = pal.ink[1]
 	}
 	lit := pal.ink[2]
-	x0 := float32(math.Round(float64(r.X + (r.W-float32(dotCols)*pitch)/2)))
-	y0 := float32(math.Round(float64(r.Y + (r.H-float32(dotRows)*pitch)/2)))
+
+	darkT, litT := pal.body.tiers()
+	if size < 40 {
+		// A nav mark has no room for three tiers: they merge into a
+		// white blob, so it stays a calm one-tone sphere.
+		darkT, litT = 0.2, 1.1
+	}
+
+	sinA, cosA := float32(math.Sin(angle)), float32(math.Cos(angle))
+	geometry := globeGeometry(dotCols, dotRows)
+	w, h := img.Rect.Dx(), img.Rect.Dy()
+	stride := img.Stride
+	pix := img.Pix
 
 	for row := range dotRows {
+		rowOff := row * dotCols
+		baseY := float32(row) * pitch
 		for col := range dotCols {
-			cell := geometry[row*dotCols+col]
+			cell := geometry[rowOff+col]
 			if !cell.inside {
 				continue
 			}
-			b := globeBrightness(pal.body, cell, angle) * (0.82 + 0.18*cell.z)
-			darkT, litT := pal.body.tiers()
-			if size < 40 {
-				// A nav mark has no room for three tiers: they merge into a
-				// white blob, so it stays a calm one-tone sphere.
-				darkT, litT = 0.2, 1.1
-			}
+			b := globeBrightnessAt(pal.body, cell, sinA, cosA) * (0.82 + 0.18*cell.z)
 			ink, dot := base, dotBase
 			switch {
 			case b >= litT:
@@ -206,12 +344,28 @@ func drawDots(p *Painter, r Rect, pal palette, angle float64) {
 			case b < darkT:
 				ink = dark
 			}
-			p.Fill(Rect{
-				X: x0 + float32(col)*pitch + (pitch-dot)/2,
-				Y: y0 + float32(row)*pitch + (pitch-dot)/2,
-				W: dot,
-				H: dot,
-			}, ink, 0)
+			px0 := int(math.Round(float64((float32(col)*pitch + (pitch-dot)/2) * scale)))
+			py0 := int(math.Round(float64((baseY + (pitch-dot)/2) * scale)))
+			pw := max(1, int(math.Round(float64(dot*scale))))
+			ph := pw
+			px1 := min(w, px0+pw)
+			py1 := min(h, py0+ph)
+			if px0 < 0 {
+				px0 = 0
+			}
+			if py0 < 0 {
+				py0 = 0
+			}
+			for py := py0; py < py1; py++ {
+				off := py*stride + px0*4
+				for px := px0; px < px1; px++ {
+					pix[off] = ink.R
+					pix[off+1] = ink.G
+					pix[off+2] = ink.B
+					pix[off+3] = ink.A
+					off += 4
+				}
+			}
 		}
 	}
 }
@@ -220,19 +374,18 @@ func drawDots(p *Painter, r Rect, pal palette, angle float64) {
 // evenly: no terminator and no night side, so the whole disc reads the same
 // way and only the surface changes the glyph.
 func globeBrightness(kind planetKind, cell globeCell, angle float64) float32 {
+	return globeBrightnessAt(kind, cell, float32(math.Sin(angle)), float32(math.Cos(angle)))
+}
+
+func globeBrightnessAt(kind planetKind, cell globeCell, sinA, cosA float32) float32 {
 	// Turn the point around Y: only the surface moves with the angle.
-	sinA, cosA := float32(math.Sin(angle)), float32(math.Cos(angle))
-	// Reverse the tilt, then rotate.
-	y := cell.v*float32(math.Cos(globeTilt)) - cell.z*float32(math.Sin(globeTilt))
-	z2 := cell.v*float32(math.Sin(globeTilt)) + cell.z*float32(math.Cos(globeTilt))
-	x := cell.u*cosA + z2*sinA
-	zz := -cell.u*sinA + z2*cosA
-	lat := math.Asin(math.Max(-1, math.Min(1, float64(y))))
+	x := cell.u*cosA + cell.zTilted*sinA
+	zz := -cell.u*sinA + cell.zTilted*cosA
 	lon := math.Atan2(float64(x), float64(zz))
 
 	// A floor keeps the darkest surface above the blank end of the ramp: the
 	// planet is shown whole, not as a lit crescent.
-	b := 0.35 + 0.65*bodyTexture(kind, lon, lat)
+	b := 0.35 + 0.65*bodyTexture(kind, lon, cell.lat)
 	b = math.Pow(math.Max(0, math.Min(1, b)), 1.2)
 	return float32(b)
 }
