@@ -218,5 +218,13 @@
   "analyzeReasonDepth": "depth limit",
   "analyzeReasonEntries": "entry limit",
   "analyzeReasonRead": "read error",
-  "analyzeReasonTimeout": "timed out"
+  "analyzeReasonTimeout": "timed out",
+  "cleanTabInstallers": "Installers",
+  "installersTitle": "Old installers in Downloads",
+  "installersHint": "Scans levels 1–2 of Downloads for .msi, .msix, .iso and .exe files older than 14 days. Always moves to the Recycle Bin.",
+  "installersScan": "Scan Downloads",
+  "installersScanning": "Scanning Downloads…",
+  "installersNothing": "No old installer files (14+ days) were found in Downloads.",
+  "installersExeHint": "Unchecked by default to avoid removing portable tools.",
+  "installersAge": "{days, number, integer}d old"
 }

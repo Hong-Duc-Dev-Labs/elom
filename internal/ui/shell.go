@@ -37,12 +37,13 @@ type App struct {
 	// Win is the main window, once it exists.
 	Win *mygo.Window
 
-	Clean    *svc.Clean
-	clean    cleanState
-	Purge    *svc.Purge
-	purge    purgeState
-	cleanTab int
-	analyze  analyzeState
+	Clean      *svc.Clean
+	clean      cleanState
+	Purge      *svc.Purge
+	purge      purgeState
+	installers installerState
+	cleanTab   int
+	analyze    analyzeState
 
 	Software *svc.Software
 	software softwareState
@@ -94,6 +95,7 @@ func New(dataDir string, store *settings.Store, log *oplog.Log) *App {
 		clean:      newCleanState(),
 		Purge:      svc.NewPurge(store, log, shellTrasher{}),
 		purge:      newPurgeState(),
+		installers: newInstallerState(),
 		analyze:    newAnalyzeState(),
 		Elevate:    svc.RunElevated,
 		Status:     svc.NewStatus(),

@@ -2248,3 +2248,83 @@ func AnalyzeReasonTimeout() string { return In(i18n.Locale()).AnalyzeReasonTimeo
 func (msgs Messages) AnalyzeReasonTimeout() string {
 	return Catalog.Format(msgs.locale, "analyzeReasonTimeout", nil)
 }
+
+// CleanTabInstallers says "Installers"
+// in the language the app shows.
+func CleanTabInstallers() string { return In(i18n.Locale()).CleanTabInstallers() }
+
+// CleanTabInstallers says "Installers"
+// in the language of msgs.
+func (msgs Messages) CleanTabInstallers() string {
+	return Catalog.Format(msgs.locale, "cleanTabInstallers", nil)
+}
+
+// InstallersTitle says "Old installers in Downloads"
+// in the language the app shows.
+func InstallersTitle() string { return In(i18n.Locale()).InstallersTitle() }
+
+// InstallersTitle says "Old installers in Downloads"
+// in the language of msgs.
+func (msgs Messages) InstallersTitle() string {
+	return Catalog.Format(msgs.locale, "installersTitle", nil)
+}
+
+// InstallersHint says "Scans levels 1–2 of Downloads for .msi, .msix, .iso and .exe files older than 14 days. Always moves to the Recycle …"
+// in the language the app shows.
+func InstallersHint() string { return In(i18n.Locale()).InstallersHint() }
+
+// InstallersHint says "Scans levels 1–2 of Downloads for .msi, .msix, .iso and .exe files older than 14 days. Always moves to the Recycle …"
+// in the language of msgs.
+func (msgs Messages) InstallersHint() string {
+	return Catalog.Format(msgs.locale, "installersHint", nil)
+}
+
+// InstallersScan says "Scan Downloads"
+// in the language the app shows.
+func InstallersScan() string { return In(i18n.Locale()).InstallersScan() }
+
+// InstallersScan says "Scan Downloads"
+// in the language of msgs.
+func (msgs Messages) InstallersScan() string {
+	return Catalog.Format(msgs.locale, "installersScan", nil)
+}
+
+// InstallersScanning says "Scanning Downloads…"
+// in the language the app shows.
+func InstallersScanning() string { return In(i18n.Locale()).InstallersScanning() }
+
+// InstallersScanning says "Scanning Downloads…"
+// in the language of msgs.
+func (msgs Messages) InstallersScanning() string {
+	return Catalog.Format(msgs.locale, "installersScanning", nil)
+}
+
+// InstallersNothing says "No old installer files (14+ days) were found in Downloads."
+// in the language the app shows.
+func InstallersNothing() string { return In(i18n.Locale()).InstallersNothing() }
+
+// InstallersNothing says "No old installer files (14+ days) were found in Downloads."
+// in the language of msgs.
+func (msgs Messages) InstallersNothing() string {
+	return Catalog.Format(msgs.locale, "installersNothing", nil)
+}
+
+// InstallersExeHint says "Unchecked by default to avoid removing portable tools."
+// in the language the app shows.
+func InstallersExeHint() string { return In(i18n.Locale()).InstallersExeHint() }
+
+// InstallersExeHint says "Unchecked by default to avoid removing portable tools."
+// in the language of msgs.
+func (msgs Messages) InstallersExeHint() string {
+	return Catalog.Format(msgs.locale, "installersExeHint", nil)
+}
+
+// InstallersAge says "{days, number, integer}d old"
+// in the language the app shows.
+func InstallersAge(days int) string { return In(i18n.Locale()).InstallersAge(days) }
+
+// InstallersAge says "{days, number, integer}d old"
+// in the language of msgs.
+func (msgs Messages) InstallersAge(days int) string {
+	return Catalog.Format(msgs.locale, "installersAge", map[string]any{"days": days})
+}

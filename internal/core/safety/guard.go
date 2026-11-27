@@ -23,8 +23,9 @@ const (
 	ReasonReparse     Reason = "a link or junction"
 	ReasonUNC         Reason = "a network path"
 	ReasonADS         Reason = "an alternate data stream"
-	ReasonInvalid     Reason = "not a usable path"
-	ReasonNotArtifact Reason = "not a recognized build artifact"
+	ReasonInvalid      Reason = "not a usable path"
+	ReasonNotArtifact  Reason = "not a recognized build artifact"
+	ReasonNotInstaller Reason = "not an installer file in Downloads"
 )
 
 // Refusal is the error Check returns for a path that must not be touched.
@@ -233,6 +234,65 @@ func ForProjectRoots(roots ...string) *Guard {
 			return nil
 		},
 	}
+}
+
+var installerExts = map[string]bool{
+	".msi":  true,
+	".msix": true,
+	".iso":  true,
+	".exe":  true,
+}
+
+// IsInstallerExt reports whether name has a recognized Windows installer
+// extension (.msi, .msix, .iso, .exe).
+func IsInstallerExt(name string) bool {
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(name)))
+	return installerExts[ext]
+}
+
+// ForInstallerDownloads returns a dedicated guard for Old Installer Cleanup.
+// It ONLY approves single regular files (never directories, never symlinks or
+// reparse points) strictly inside downloadsDir with an allowed installer
+// extension (.msi, .msix, .iso, .exe).
+func ForInstallerDownloads(downloadsDir string) *Guard {
+	home := env("USERPROFILE", func() string { h, _ := os.UserHomeDir(); return h })
+	programData := env("ProgramData", func() string { return `C:\ProgramData` })
+	systemRoot := env("SystemRoot", func() string { return `C:\Windows` })
+	g := &Guard{
+		home:  home,
+		allow: compact(downloadsDir),
+		protected: compact(
+			systemRoot,
+			os.Getenv("ProgramFiles"),
+			os.Getenv("ProgramFiles(x86)"),
+			os.Getenv("ProgramW6432"),
+			filepath.Join(programData, "Microsoft"),
+			filepath.Join(programData, "Package Cache"),
+		),
+		userData: compact(
+			filepath.Join(home, "Desktop"),
+			filepath.Join(home, "Documents"),
+			filepath.Join(home, "Pictures"),
+			filepath.Join(home, "Videos"),
+			filepath.Join(home, "Music"),
+			filepath.Join(home, "Saved Games"),
+		),
+		extraCheck: func(root, abs string) error {
+			if normalize(abs) == normalize(root) {
+				return &Refusal{Path: abs, Reason: ReasonNotInstaller}
+			}
+			if !IsInstallerExt(filepath.Base(abs)) {
+				return &Refusal{Path: abs, Reason: ReasonNotInstaller}
+			}
+			info, err := os.Lstat(abs)
+			if err != nil || info.IsDir() || !info.Mode().IsRegular() {
+				return &Refusal{Path: abs, Reason: ReasonNotInstaller}
+			}
+			return nil
+		},
+	}
+	g.userData = append(g.userData, oneDriveFolders(home)...)
+	return g
 }
 
 // Check returns nil when path may be deleted, and a *Refusal otherwise. It

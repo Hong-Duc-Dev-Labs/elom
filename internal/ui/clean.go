@@ -44,19 +44,21 @@ func (s *cleanState) heroOnly() bool {
 	return !s.reviewing || len(s.candidates) == 0
 }
 
-// cleanPage draws the Clean screen with its sub-tabs (Caches, Dev Purge).
+// cleanPage draws the Clean screen with its sub-tabs (Caches, Dev Purge, Installers).
 func (a *App) cleanPage(c *Context, pal palette) {
 	a.cleanSubTabs(c, pal)
 	switch a.cleanTab {
 	case 1:
 		a.purgeTab(c, pal)
+	case 2:
+		a.installersTab(c, pal)
 	default:
 		a.cleanCacheTab(c, pal)
 	}
 }
 
 func (a *App) cleanSubTabs(c *Context, pal palette) {
-	labels := []string{locales.CleanTabCaches(), locales.CleanTabPurge()}
+	labels := []string{locales.CleanTabCaches(), locales.CleanTabPurge(), locales.CleanTabInstallers()}
 	Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(2, 0, 6, 0).Children(func() {
 		seg := SegmentedBase(c, &a.cleanTab, len(labels))
 		seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).

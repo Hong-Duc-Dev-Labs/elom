@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"elom/internal/core/delete"
+	"elom/internal/core/installer"
 	"elom/internal/core/oplog"
 	"elom/internal/core/rules"
 	"elom/internal/core/safety"
@@ -20,11 +21,12 @@ import (
 
 // Clean scans the catalog and removes what the user approved.
 type Clean struct {
-	Guard   *safety.Guard
-	Store   *settings.Store
-	Log     *oplog.Log
-	Catalog []rules.Rule
-	Trash   delete.Trasher
+	Guard        *safety.Guard
+	Store        *settings.Store
+	Log          *oplog.Log
+	Catalog      []rules.Rule
+	Trash        delete.Trasher
+	DownloadsDir string
 }
 
 // NewClean wires a Clean service. catalog may be nil to use the built-in one.
@@ -77,6 +79,52 @@ func (s *Clean) DeletePaths(ctx context.Context, paths []string) []delete.Result
 		items = append(items, delete.Item{Path: path})
 	}
 	return delete.Run(ctx, s.Guard, s.Log, NewRunID(), items, s.Trash, false)
+}
+
+func (s *Clean) downloadsDir() string {
+	if s.DownloadsDir != "" {
+		return s.DownloadsDir
+	}
+	return installer.DefaultDownloadsDir("")
+}
+
+// ScanInstallers finds old installer files (.msi, .msix, .iso, .exe >= 14d)
+// in Downloads. It fails closed when the protection list is unreadable or the
+// operation log is not writable.
+func (s *Clean) ScanInstallers(ctx context.Context) ([]installer.Candidate, error) {
+	var whitelist []string
+	if s.Store != nil {
+		wl, err := s.Store.Whitelist()
+		if err != nil {
+			return nil, err
+		}
+		whitelist = wl
+	}
+	if s.Log != nil {
+		if err := s.Log.RequireWritable(); err != nil {
+			return nil, err
+		}
+	}
+	return installer.Scan(ctx, s.downloadsDir(), installer.Options{Whitelist: whitelist}), nil
+}
+
+// DeleteInstallers moves approved installer files to the Recycle Bin using the
+// dedicated ForInstallerDownloads guard. Installers are NEVER permanently
+// deleted and every operation is recorded in the operation log.
+func (s *Clean) DeleteInstallers(ctx context.Context, candidates []installer.Candidate) []delete.Result {
+	guard := safety.ForInstallerDownloads(s.downloadsDir())
+	items := make([]delete.Item, 0, len(candidates))
+	for _, c := range candidates {
+		if c.Blocked != nil {
+			continue
+		}
+		items = append(items, delete.Item{
+			Path:     c.Path,
+			Bytes:    c.Bytes,
+			Category: "installer",
+		})
+	}
+	return delete.Run(ctx, guard, s.Log, NewRunID(), items, s.Trash, false)
 }
 
 // NewRunID names one destructive run in the operation log.

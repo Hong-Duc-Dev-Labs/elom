@@ -218,5 +218,13 @@
   "analyzeReasonDepth": "giới hạn độ sâu",
   "analyzeReasonEntries": "giới hạn số mục",
   "analyzeReasonRead": "lỗi đọc",
-  "analyzeReasonTimeout": "hết thời gian"
+  "analyzeReasonTimeout": "hết thời gian",
+  "cleanTabInstallers": "Bộ cài cũ",
+  "installersTitle": "Bộ cài cũ trong Downloads",
+  "installersHint": "Quét cấp 1–2 trong Downloads tìm file .msi, .msix, .iso và .exe cũ hơn 14 ngày. Luôn chuyển vào Recycle Bin.",
+  "installersScan": "Quét Downloads",
+  "installersScanning": "Đang quét Downloads…",
+  "installersNothing": "Không tìm thấy bộ cài cũ (từ 14 ngày trở lên) trong Downloads.",
+  "installersExeHint": "Bỏ chọn mặc định để tránh xoá công cụ portable.",
+  "installersAge": "cũ {days, number, integer} ngày"
 }

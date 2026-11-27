@@ -200,3 +200,40 @@ func TestForProjectRoots(t *testing.T) {
 		t.Errorf("Check(outside root) = %v, want ReasonOutsideRoot", err)
 	}
 }
+
+func TestForInstallerDownloads(t *testing.T) {
+	downloads := t.TempDir()
+	msi := filepath.Join(downloads, "setup.msi")
+	doc := filepath.Join(downloads, "notes.txt")
+	subDir := filepath.Join(downloads, "folder.msi")
+	if err := os.WriteFile(msi, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(doc, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "other.msi")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g := ForInstallerDownloads(downloads)
+	if err := g.Check(msi); err != nil {
+		t.Errorf("Check(setup.msi) = %v, want allow", err)
+	}
+	if err := g.Check(downloads); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(downloads root) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(doc); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(notes.txt) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(subDir); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(directory named folder.msi) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(outside); !IsRefusal(err, ReasonOutsideRoot) {
+		t.Errorf("Check(outside.msi) = %v, want ReasonOutsideRoot", err)
+	}
+}
