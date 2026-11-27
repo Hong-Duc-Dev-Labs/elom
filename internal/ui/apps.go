@@ -16,7 +16,7 @@ import (
 func (a *App) appsPage(c *Context, pal palette) {
 	st := &a.software
 	Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
-		labels := []string{locales.SoftwareUninstall(), locales.SoftwareUpdates(), locales.NavStartup()}
+		labels := []string{locales.SoftwareUninstall(), locales.SoftwareUpdates(), locales.NavStartup(), locales.AppsOrphaned()}
 		seg := SegmentedBase(c, &a.appsTab, len(labels))
 		seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
 			Border(1, hairline()).Label(locales.NavApps()).Children(func() {
@@ -63,6 +63,10 @@ func (a *App) appsPage(c *Context, pal palette) {
 		Scroll(c).FillWidth().Grow(1).Children(func() {
 			Column(c).FillWidth().Gap(12).Children(func() { a.startupPage(c, pal) })
 		})
+	case 3:
+		Scroll(c).FillWidth().Grow(1).Children(func() {
+			Column(c).FillWidth().Gap(12).Children(func() { a.orphanedTab(c, pal) })
+		})
 	default:
 		a.uninstallTab(c, pal)
 	}
@@ -99,6 +103,8 @@ func (a *App) refreshApps() {
 	case 2:
 		a.startup.loaded = false
 		a.loadStartup()
+	case 3:
+		a.scanOrphaned()
 	default:
 		a.software.loaded = false
 		a.loadApps()

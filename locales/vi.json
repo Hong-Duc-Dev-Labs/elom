@@ -226,5 +226,13 @@
   "installersScanning": "Đang quét Downloads…",
   "installersNothing": "Không tìm thấy bộ cài cũ (từ 14 ngày trở lên) trong Downloads.",
   "installersExeHint": "Bỏ chọn mặc định để tránh xoá công cụ portable.",
-  "installersAge": "cũ {days, number, integer} ngày"
+  "installersAge": "cũ {days, number, integer} ngày",
+  "appsOrphaned": "Dữ liệu mồ côi",
+  "appsOrphanedTitle": "Dữ liệu ứng dụng mồ côi",
+  "appsOrphanedHint": "Thư mục AppData không hoạt động trên 60 ngày, lớn hơn 10 MB và không khớp ứng dụng nào đang cài. Luôn bỏ chọn mặc định và chuyển vào Recycle Bin.",
+  "appsOrphanedScan": "Quét dữ liệu mồ côi",
+  "appsOrphanedScanning": "Đang quét AppData tìm thư mục mồ côi…",
+  "appsOrphanedNothing": "Không tìm thấy thư mục AppData mồ côi nào (trên 60 ngày, trên 10 MB).",
+  "appsOrphanedTrash": "Chuyển mục đã chọn vào Recycle Bin",
+  "appsOrphanedInactive": "không dùng {days, number, integer} ngày"
 }

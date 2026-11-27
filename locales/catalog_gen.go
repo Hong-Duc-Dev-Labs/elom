@@ -2328,3 +2328,83 @@ func InstallersAge(days int) string { return In(i18n.Locale()).InstallersAge(day
 func (msgs Messages) InstallersAge(days int) string {
 	return Catalog.Format(msgs.locale, "installersAge", map[string]any{"days": days})
 }
+
+// AppsOrphaned says "Orphaned"
+// in the language the app shows.
+func AppsOrphaned() string { return In(i18n.Locale()).AppsOrphaned() }
+
+// AppsOrphaned says "Orphaned"
+// in the language of msgs.
+func (msgs Messages) AppsOrphaned() string {
+	return Catalog.Format(msgs.locale, "appsOrphaned", nil)
+}
+
+// AppsOrphanedTitle says "Orphaned app data"
+// in the language the app shows.
+func AppsOrphanedTitle() string { return In(i18n.Locale()).AppsOrphanedTitle() }
+
+// AppsOrphanedTitle says "Orphaned app data"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedTitle() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedTitle", nil)
+}
+
+// AppsOrphanedHint says "AppData folders inactive for 60+ days and larger than 10 MB with no matching installed app. Always unchecked by defau…"
+// in the language the app shows.
+func AppsOrphanedHint() string { return In(i18n.Locale()).AppsOrphanedHint() }
+
+// AppsOrphanedHint says "AppData folders inactive for 60+ days and larger than 10 MB with no matching installed app. Always unchecked by defau…"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedHint() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedHint", nil)
+}
+
+// AppsOrphanedScan says "Scan orphaned data"
+// in the language the app shows.
+func AppsOrphanedScan() string { return In(i18n.Locale()).AppsOrphanedScan() }
+
+// AppsOrphanedScan says "Scan orphaned data"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedScan() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedScan", nil)
+}
+
+// AppsOrphanedScanning says "Scanning AppData for orphaned folders…"
+// in the language the app shows.
+func AppsOrphanedScanning() string { return In(i18n.Locale()).AppsOrphanedScanning() }
+
+// AppsOrphanedScanning says "Scanning AppData for orphaned folders…"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedScanning() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedScanning", nil)
+}
+
+// AppsOrphanedNothing says "No orphaned AppData folders (60+ days, 10+ MB) were found."
+// in the language the app shows.
+func AppsOrphanedNothing() string { return In(i18n.Locale()).AppsOrphanedNothing() }
+
+// AppsOrphanedNothing says "No orphaned AppData folders (60+ days, 10+ MB) were found."
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedNothing() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedNothing", nil)
+}
+
+// AppsOrphanedTrash says "Move selected to Recycle Bin"
+// in the language the app shows.
+func AppsOrphanedTrash() string { return In(i18n.Locale()).AppsOrphanedTrash() }
+
+// AppsOrphanedTrash says "Move selected to Recycle Bin"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedTrash() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedTrash", nil)
+}
+
+// AppsOrphanedInactive says "inactive {days, number, integer}d"
+// in the language the app shows.
+func AppsOrphanedInactive(days int) string { return In(i18n.Locale()).AppsOrphanedInactive(days) }
+
+// AppsOrphanedInactive says "inactive {days, number, integer}d"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedInactive(days int) string {
+	return Catalog.Format(msgs.locale, "appsOrphanedInactive", map[string]any{"days": days})
+}

@@ -226,5 +226,13 @@
   "installersScanning": "Scanning Downloads…",
   "installersNothing": "No old installer files (14+ days) were found in Downloads.",
   "installersExeHint": "Unchecked by default to avoid removing portable tools.",
-  "installersAge": "{days, number, integer}d old"
+  "installersAge": "{days, number, integer}d old",
+  "appsOrphaned": "Orphaned",
+  "appsOrphanedTitle": "Orphaned app data",
+  "appsOrphanedHint": "AppData folders inactive for 60+ days and larger than 10 MB with no matching installed app. Always unchecked by default and moved to the Recycle Bin.",
+  "appsOrphanedScan": "Scan orphaned data",
+  "appsOrphanedScanning": "Scanning AppData for orphaned folders…",
+  "appsOrphanedNothing": "No orphaned AppData folders (60+ days, 10+ MB) were found.",
+  "appsOrphanedTrash": "Move selected to Recycle Bin",
+  "appsOrphanedInactive": "inactive {days, number, integer}d"
 }

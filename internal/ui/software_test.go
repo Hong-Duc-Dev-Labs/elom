@@ -253,3 +253,35 @@ func TestSoftwareDetailRendersSelectedApp(t *testing.T) {
 		}
 	}
 }
+
+func TestOrphanedTabRendersInactiveFolders(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "software"
+	a.appsTab = 3
+	a.software.orphanScanned = true
+	a.software.orphaned = []apps.Leftover{
+		{
+			Path:       `C:\Users\ada\AppData\Local\OldRemovedApp`,
+			Confidence: "low",
+			Reason:     "no matching installed app",
+			Bytes:      25_000_000,
+			AgeDays:    95,
+			Checked:    false,
+		},
+	}
+
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{
+		"Orphaned",
+		"ORPHANED APP DATA",
+		"OldRemovedApp",
+		"inactive 95d",
+		"25.0 MB",
+		"0 items selected",
+	} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+}
