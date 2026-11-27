@@ -152,6 +152,38 @@ func TestRunRefusesOutsideRoot(t *testing.T) {
 	}
 }
 
+func TestRunUnchecksRunningApp(t *testing.T) {
+	root := fixture(t)
+	guard := safety.ForRoots(root)
+	catalog := []rules.Rule{{
+		ID:             "chrome-cache",
+		Category:       "browser",
+		App:            "Google Chrome",
+		Paths:          []string{filepath.Join(root, "cache", "a")},
+		Processes:      []string{"chrome.exe"},
+		DefaultChecked: true,
+	}}
+	got := Run(context.Background(), guard, catalog, Options{
+		RunningProcesses: map[string]bool{"chrome.exe": true},
+	}, nil)
+	if len(got) != 1 {
+		t.Fatalf("got %d candidates, want 1", len(got))
+	}
+	if got[0].RunningProcess != "chrome.exe" {
+		t.Errorf("RunningProcess = %q, want chrome.exe", got[0].RunningProcess)
+	}
+	if got[0].Checked {
+		t.Error("candidate for a running app remained checked by default")
+	}
+
+	got = Run(context.Background(), guard, catalog, Options{
+		RunningProcesses: map[string]bool{},
+	}, nil)
+	if len(got) != 1 || got[0].RunningProcess != "" || !got[0].Checked {
+		t.Errorf("idle app candidate = %+v, want Checked=true and RunningProcess empty", got)
+	}
+}
+
 func TestRunCancel(t *testing.T) {
 	root := fixture(t)
 	guard := safety.ForRoots(root)

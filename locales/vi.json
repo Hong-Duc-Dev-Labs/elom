@@ -186,5 +186,9 @@
   "appsLocation": "Thư mục cài đặt",
   "appsKind": "Nguồn",
   "cleanScreenOpen": "Mở",
-  "cleanScreenRow": "Che kín màn hình bằng một screensaver khi máy đang bận."
+  "cleanScreenRow": "Che kín màn hình bằng một screensaver khi máy đang bận.",
+  "cleanRunningApp": "Đang chạy ({process}) — nên đóng ứng dụng trước khi xoá bộ nhớ đệm.",
+  "appsProtected": "thành phần hệ thống",
+  "appsProtectedNote": "Runtime hệ thống, driver hoặc thành phần cốt lõi. Gỡ bỏ có thể làm hỏng các ứng dụng hoặc game khác.",
+  "appsProtectedConfirmDetail": "Đây là runtime hệ thống, driver hoặc thành phần cốt lõi của Windows. Gỡ bỏ có thể làm hỏng các ứng dụng hoặc game khác. Chỉ tiếp tục nếu bạn chắc chắn."
 }

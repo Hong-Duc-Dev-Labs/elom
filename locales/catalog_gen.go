@@ -1924,3 +1924,43 @@ func CleanScreenRow() string { return In(i18n.Locale()).CleanScreenRow() }
 func (msgs Messages) CleanScreenRow() string {
 	return Catalog.Format(msgs.locale, "cleanScreenRow", nil)
 }
+
+// CleanRunningApp says "Running ({process}) — close it first before clearing its cache."
+// in the language the app shows.
+func CleanRunningApp(process string) string { return In(i18n.Locale()).CleanRunningApp(process) }
+
+// CleanRunningApp says "Running ({process}) — close it first before clearing its cache."
+// in the language of msgs.
+func (msgs Messages) CleanRunningApp(process string) string {
+	return Catalog.Format(msgs.locale, "cleanRunningApp", map[string]any{"process": process})
+}
+
+// AppsProtected says "system component"
+// in the language the app shows.
+func AppsProtected() string { return In(i18n.Locale()).AppsProtected() }
+
+// AppsProtected says "system component"
+// in the language of msgs.
+func (msgs Messages) AppsProtected() string {
+	return Catalog.Format(msgs.locale, "appsProtected", nil)
+}
+
+// AppsProtectedNote says "System runtime, driver or core component. Removing it can break other apps or games."
+// in the language the app shows.
+func AppsProtectedNote() string { return In(i18n.Locale()).AppsProtectedNote() }
+
+// AppsProtectedNote says "System runtime, driver or core component. Removing it can break other apps or games."
+// in the language of msgs.
+func (msgs Messages) AppsProtectedNote() string {
+	return Catalog.Format(msgs.locale, "appsProtectedNote", nil)
+}
+
+// AppsProtectedConfirmDetail says "This looks like a system runtime, driver or core Windows component. Removing it can break other apps or games. Contin…"
+// in the language the app shows.
+func AppsProtectedConfirmDetail() string { return In(i18n.Locale()).AppsProtectedConfirmDetail() }
+
+// AppsProtectedConfirmDetail says "This looks like a system runtime, driver or core Windows component. Removing it can break other apps or games. Contin…"
+// in the language of msgs.
+func (msgs Messages) AppsProtectedConfirmDetail() string {
+	return Catalog.Format(msgs.locale, "appsProtectedConfirmDetail", nil)
+}

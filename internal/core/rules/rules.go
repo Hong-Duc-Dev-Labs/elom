@@ -18,6 +18,7 @@ type Rule struct {
 	Category       string   `json:"category"`
 	App            string   `json:"app"`
 	Paths          []string `json:"paths"`
+	Processes      []string `json:"processes,omitempty"`
 	MinAgeDays     int      `json:"minAgeDays"`
 	Regenerates    bool     `json:"regenerates"`
 	DefaultChecked bool     `json:"defaultChecked"`

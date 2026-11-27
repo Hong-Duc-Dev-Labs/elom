@@ -59,14 +59,16 @@ func ParsePackaged(data []byte) ([]App, error) {
 		if strings.TrimSpace(p.Name) == "" || strings.TrimSpace(p.PackageFullName) == "" {
 			continue
 		}
-		out = append(out, App{
+		app := App{
 			ID:              p.PackageFullName,
 			Name:            p.Name,
 			Version:         p.Version,
 			Publisher:       p.PublisherDisplay,
 			InstallLocation: p.InstallLocation,
 			Kind:            KindAppx,
-		})
+		}
+		app.Protected = IsProtected(app)
+		out = append(out, app)
 	}
 	SortApps(out)
 	return out, nil
