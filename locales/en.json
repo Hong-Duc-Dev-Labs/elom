@@ -199,5 +199,17 @@
   "statusDiagDisk": "Disk low, {free} free",
   "statusDiagDiskIO": "Disk I/O busy",
   "statusDiagUptime": "Long uptime — restart recommended",
-  "statusDriveFree": "{drive} {free} free"
+  "statusDriveFree": "{drive} {free} free",
+  "cleanTabCaches": "Caches",
+  "cleanTabPurge": "Dev Purge",
+  "purgeFoldersTitle": "Project folders",
+  "purgeFoldersHint": "Elom only scans these folders when you click Scan. Only build artifacts inside recognized projects are offered.",
+  "purgeAddFolder": "Add folder…",
+  "purgeRemoveFolder": "Remove folder",
+  "purgeNoFolders": "No project folders configured yet. Add one to scan for node_modules, target, .venv, bin/obj and other build outputs.",
+  "purgeScan": "Scan projects",
+  "purgeScanning": "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)",
+  "purgeNothing": "No removable build artifacts were found in your project folders.",
+  "purgeRecentTag": "recent",
+  "purgeRecentHint": "Modified within 7 days — unchecked by default."
 }

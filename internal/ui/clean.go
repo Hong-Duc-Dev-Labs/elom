@@ -44,9 +44,49 @@ func (s *cleanState) heroOnly() bool {
 	return !s.reviewing || len(s.candidates) == 0
 }
 
-// cleanPage draws the review screen: what was found, what is selected, and
-// the one action that removes it.
+// cleanPage draws the Clean screen with its sub-tabs (Caches, Dev Purge).
 func (a *App) cleanPage(c *Context, pal palette) {
+	a.cleanSubTabs(c, pal)
+	switch a.cleanTab {
+	case 1:
+		a.purgeTab(c, pal)
+	default:
+		a.cleanCacheTab(c, pal)
+	}
+}
+
+func (a *App) cleanSubTabs(c *Context, pal palette) {
+	labels := []string{locales.CleanTabCaches(), locales.CleanTabPurge()}
+	Row(c).FillWidth().Gap(8).AlignItems(Center).Padding(2, 0, 6, 0).Children(func() {
+		seg := SegmentedBase(c, &a.cleanTab, len(labels))
+		seg.Track.Padding(3).Radius(radiusRow).Background(RGBA(0, 0, 0, 0.12)).
+			Border(1, hairline()).Label(locales.NavClean()).Children(func() {
+			for i, label := range labels {
+				s := seg.Segment(i).Padding(6, 12).Radius(6).Label(label)
+				color := fgMuted()
+				switch {
+				case i == a.cleanTab:
+					s.Background(pal.ink[1].Alpha(0.22))
+					s.Border(1, pal.ink[1].Alpha(0.40))
+					color = fgPrimary()
+				case s.Hovered():
+					s.Background(faintFill())
+				}
+				s.Children(func() {
+					t := Text(c, label).Font(fontMono).FontSize(11).NoWrap().TextColor(color)
+					if i == a.cleanTab {
+						t.FontWeight(500)
+					}
+				})
+			}
+		})
+		Spacer(c)
+	})
+}
+
+// cleanCacheTab draws the cache review screen: what was found, what is
+// selected, and the one action that removes it.
+func (a *App) cleanCacheTab(c *Context, pal palette) {
 	st := &a.clean
 
 	if st.err != "" {

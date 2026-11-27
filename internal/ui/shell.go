@@ -37,9 +37,12 @@ type App struct {
 	// Win is the main window, once it exists.
 	Win *mygo.Window
 
-	Clean   *svc.Clean
-	clean   cleanState
-	analyze analyzeState
+	Clean    *svc.Clean
+	clean    cleanState
+	Purge    *svc.Purge
+	purge    purgeState
+	cleanTab int
+	analyze  analyzeState
 
 	Software *svc.Software
 	software softwareState
@@ -89,6 +92,8 @@ func New(dataDir string, store *settings.Store, log *oplog.Log) *App {
 		DataDir:    dataDir,
 		Clean:      svc.NewClean(safety.New(), store, log, nil, shellTrasher{}),
 		clean:      newCleanState(),
+		Purge:      svc.NewPurge(store, log, shellTrasher{}),
+		purge:      newPurgeState(),
 		analyze:    newAnalyzeState(),
 		Elevate:    svc.RunElevated,
 		Status:     svc.NewStatus(),
@@ -140,6 +145,11 @@ func (a *App) reload() {
 	} else {
 		a.WhitelistErr = ""
 		a.whitelist = patterns
+	}
+	if a.Purge != nil {
+		if paths, perr := a.Purge.Paths(); perr == nil {
+			a.purge.paths = paths
+		}
 	}
 }
 
@@ -311,9 +321,14 @@ func (a *App) page(c *Context, pal palette) {
 	}
 	// The hero screens take the window's height, so their stage centers in
 	// the viewport instead of sitting at the top of a scrolling page.
-	if r.ID == "clean" && a.clean.heroOnly() {
-		Column(c).FillWidth().Grow(1).Padding(4, 24, 20, 24).Children(func() {
-			Column(c).FillWidth().MaxWidth(1100).Grow(1).Justify(Center).Children(body)
+	if r.ID == "clean" && a.cleanTab == 0 && a.clean.heroOnly() {
+		Column(c).FillWidth().Grow(1).Padding(4, 24, 20, 24).AlignItems(Center).Children(func() {
+			Column(c).FillWidth().MaxWidth(1100).Grow(1).Children(func() {
+				a.cleanSubTabs(c, pal)
+				Column(c).FillWidth().Grow(1).Justify(Center).Children(func() {
+					a.cleanCacheTab(c, pal)
+				})
+			})
 		})
 		return
 	}

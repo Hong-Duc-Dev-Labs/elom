@@ -24,6 +24,7 @@ const (
 	ReasonUNC         Reason = "a network path"
 	ReasonADS         Reason = "an alternate data stream"
 	ReasonInvalid     Reason = "not a usable path"
+	ReasonNotArtifact Reason = "not a recognized build artifact"
 )
 
 // Refusal is the error Check returns for a path that must not be touched.
@@ -45,10 +46,11 @@ func IsRefusal(err error, reason Reason) bool {
 // Guard holds the folders cleanup may work in and the places it may never
 // touch. Build it once with New; it is read-only afterwards.
 type Guard struct {
-	allow     []string
-	protected []string
-	userData  []string
-	home      string
+	allow      []string
+	protected  []string
+	userData   []string
+	home       string
+	extraCheck func(root, abs string) error
 }
 
 // New builds the guard from the current user's environment. Paths come from
@@ -106,6 +108,133 @@ func ForRoots(allow ...string) *Guard {
 	return &Guard{allow: compact(allow...)}
 }
 
+// projectArtifacts is the closed set of build/dependency directory names that
+// ForProjectRoots may approve for deletion.
+var projectArtifacts = map[string]bool{
+	"node_modules":  true,
+	"target":        true,
+	".venv":         true,
+	"venv":          true,
+	"__pycache__":   true,
+	".pytest_cache": true,
+	".mypy_cache":   true,
+	".ruff_cache":   true,
+	".next":         true,
+	".nuxt":         true,
+	".turbo":        true,
+	".parcel-cache": true,
+	".vite":         true,
+	"bin":           true,
+	"obj":           true,
+	".gradle":       true,
+	"dist":          true,
+	"build":         true,
+	"out":           true,
+}
+
+// projectMarkers are exact filenames that identify a developer project root.
+var projectMarkers = []string{
+	"package.json",
+	"cargo.toml",
+	"go.mod",
+	"pyproject.toml",
+	"requirements.txt",
+	"setup.py",
+	"build.gradle",
+	"build.gradle.kts",
+	"pom.xml",
+	"composer.json",
+	"cmakelists.txt",
+	"pubspec.yaml",
+	"mix.exs",
+	"gemfile",
+	"tsconfig.json",
+}
+
+// projectMarkerExts are file extensions (e.g. .NET project files) that
+// identify a developer project root.
+var projectMarkerExts = []string{
+	".csproj",
+	".fsproj",
+	".vbproj",
+	".sln",
+}
+
+// IsArtifactName reports whether name is in the closed set of developer build
+// and dependency artifact directories.
+func IsArtifactName(name string) bool {
+	return projectArtifacts[strings.ToLower(strings.TrimSpace(name))]
+}
+
+// HasProjectMarker reports whether dir directly contains a recognized project
+// manifest or solution file (such as package.json, Cargo.toml, go.mod,
+// pyproject.toml, *.csproj, *.sln, build.gradle, pom.xml).
+func HasProjectMarker(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		lower := strings.ToLower(e.Name())
+		for _, m := range projectMarkers {
+			if lower == m {
+				return true
+			}
+		}
+		for _, ext := range projectMarkerExts {
+			if strings.HasSuffix(lower, ext) && len(lower) > len(ext) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// IsReparse reports whether path exists and is a reparse point (junction,
+// symbolic link, or cloud placeholder on Windows; symlink elsewhere).
+func IsReparse(path string) bool {
+	return isReparse(path)
+}
+
+// ForProjectRoots returns a specialized guard for Developer Project Purge.
+// Beyond the standard UNC, ADS, volume root, OS protected folder, allow-root
+// and reparse-point checks, it ONLY approves a path when:
+//   - it is strictly inside one of the given project roots (never a root itself),
+//   - its basename is in the closed build/dependency artifact list, and
+//   - its parent directory contains a valid project marker file.
+func ForProjectRoots(roots ...string) *Guard {
+	home := env("USERPROFILE", func() string { h, _ := os.UserHomeDir(); return h })
+	programData := env("ProgramData", func() string { return `C:\ProgramData` })
+	systemRoot := env("SystemRoot", func() string { return `C:\Windows` })
+	return &Guard{
+		home:  home,
+		allow: compact(roots...),
+		protected: compact(
+			systemRoot,
+			os.Getenv("ProgramFiles"),
+			os.Getenv("ProgramFiles(x86)"),
+			os.Getenv("ProgramW6432"),
+			filepath.Join(programData, "Microsoft"),
+			filepath.Join(programData, "Package Cache"),
+		),
+		extraCheck: func(root, abs string) error {
+			if normalize(abs) == normalize(root) {
+				return &Refusal{Path: abs, Reason: ReasonNotArtifact}
+			}
+			if !IsArtifactName(filepath.Base(abs)) {
+				return &Refusal{Path: abs, Reason: ReasonNotArtifact}
+			}
+			if !HasProjectMarker(filepath.Dir(abs)) {
+				return &Refusal{Path: abs, Reason: ReasonNotArtifact}
+			}
+			return nil
+		},
+	}
+}
+
 // Check returns nil when path may be deleted, and a *Refusal otherwise. It
 // cleans the path, resolves it against the working directory, refuses
 // network paths and alternate data streams, then checks the protected
@@ -144,6 +273,11 @@ func (g *Guard) Check(path string) error {
 	}
 	if link, ok := reparseAncestor(root, abs); ok {
 		return &Refusal{Path: link, Reason: ReasonReparse}
+	}
+	if g.extraCheck != nil {
+		if err := g.extraCheck(root, abs); err != nil {
+			return err
+		}
 	}
 	return nil
 }

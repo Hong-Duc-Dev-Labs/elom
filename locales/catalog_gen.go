@@ -2056,3 +2056,123 @@ func StatusDriveFree(drive string, free string) string {
 func (msgs Messages) StatusDriveFree(drive string, free string) string {
 	return Catalog.Format(msgs.locale, "statusDriveFree", map[string]any{"drive": drive, "free": free})
 }
+
+// CleanTabCaches says "Caches"
+// in the language the app shows.
+func CleanTabCaches() string { return In(i18n.Locale()).CleanTabCaches() }
+
+// CleanTabCaches says "Caches"
+// in the language of msgs.
+func (msgs Messages) CleanTabCaches() string {
+	return Catalog.Format(msgs.locale, "cleanTabCaches", nil)
+}
+
+// CleanTabPurge says "Dev Purge"
+// in the language the app shows.
+func CleanTabPurge() string { return In(i18n.Locale()).CleanTabPurge() }
+
+// CleanTabPurge says "Dev Purge"
+// in the language of msgs.
+func (msgs Messages) CleanTabPurge() string {
+	return Catalog.Format(msgs.locale, "cleanTabPurge", nil)
+}
+
+// PurgeFoldersTitle says "Project folders"
+// in the language the app shows.
+func PurgeFoldersTitle() string { return In(i18n.Locale()).PurgeFoldersTitle() }
+
+// PurgeFoldersTitle says "Project folders"
+// in the language of msgs.
+func (msgs Messages) PurgeFoldersTitle() string {
+	return Catalog.Format(msgs.locale, "purgeFoldersTitle", nil)
+}
+
+// PurgeFoldersHint says "Elom only scans these folders when you click Scan. Only build artifacts inside recognized projects are offered."
+// in the language the app shows.
+func PurgeFoldersHint() string { return In(i18n.Locale()).PurgeFoldersHint() }
+
+// PurgeFoldersHint says "Elom only scans these folders when you click Scan. Only build artifacts inside recognized projects are offered."
+// in the language of msgs.
+func (msgs Messages) PurgeFoldersHint() string {
+	return Catalog.Format(msgs.locale, "purgeFoldersHint", nil)
+}
+
+// PurgeAddFolder says "Add folder…"
+// in the language the app shows.
+func PurgeAddFolder() string { return In(i18n.Locale()).PurgeAddFolder() }
+
+// PurgeAddFolder says "Add folder…"
+// in the language of msgs.
+func (msgs Messages) PurgeAddFolder() string {
+	return Catalog.Format(msgs.locale, "purgeAddFolder", nil)
+}
+
+// PurgeRemoveFolder says "Remove folder"
+// in the language the app shows.
+func PurgeRemoveFolder() string { return In(i18n.Locale()).PurgeRemoveFolder() }
+
+// PurgeRemoveFolder says "Remove folder"
+// in the language of msgs.
+func (msgs Messages) PurgeRemoveFolder() string {
+	return Catalog.Format(msgs.locale, "purgeRemoveFolder", nil)
+}
+
+// PurgeNoFolders says "No project folders configured yet. Add one to scan for node_modules, target, .venv, bin/obj and other build outputs."
+// in the language the app shows.
+func PurgeNoFolders() string { return In(i18n.Locale()).PurgeNoFolders() }
+
+// PurgeNoFolders says "No project folders configured yet. Add one to scan for node_modules, target, .venv, bin/obj and other build outputs."
+// in the language of msgs.
+func (msgs Messages) PurgeNoFolders() string {
+	return Catalog.Format(msgs.locale, "purgeNoFolders", nil)
+}
+
+// PurgeScan says "Scan projects"
+// in the language the app shows.
+func PurgeScan() string { return In(i18n.Locale()).PurgeScan() }
+
+// PurgeScan says "Scan projects"
+// in the language of msgs.
+func (msgs Messages) PurgeScan() string {
+	return Catalog.Format(msgs.locale, "purgeScan", nil)
+}
+
+// PurgeScanning says "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)"
+// in the language the app shows.
+func PurgeScanning(dirs int, found int) string { return In(i18n.Locale()).PurgeScanning(dirs, found) }
+
+// PurgeScanning says "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)"
+// in the language of msgs.
+func (msgs Messages) PurgeScanning(dirs int, found int) string {
+	return Catalog.Format(msgs.locale, "purgeScanning", map[string]any{"dirs": dirs, "found": found})
+}
+
+// PurgeNothing says "No removable build artifacts were found in your project folders."
+// in the language the app shows.
+func PurgeNothing() string { return In(i18n.Locale()).PurgeNothing() }
+
+// PurgeNothing says "No removable build artifacts were found in your project folders."
+// in the language of msgs.
+func (msgs Messages) PurgeNothing() string {
+	return Catalog.Format(msgs.locale, "purgeNothing", nil)
+}
+
+// PurgeRecentTag says "recent"
+// in the language the app shows.
+func PurgeRecentTag() string { return In(i18n.Locale()).PurgeRecentTag() }
+
+// PurgeRecentTag says "recent"
+// in the language of msgs.
+func (msgs Messages) PurgeRecentTag() string {
+	return Catalog.Format(msgs.locale, "purgeRecentTag", nil)
+}
+
+// PurgeRecentHint says "Modified within 7 days — unchecked by default."
+// in the language the app shows.
+func PurgeRecentHint() string { return In(i18n.Locale()).PurgeRecentHint() }
+
+// PurgeRecentHint says "Modified within 7 days — unchecked by default."
+// in the language of msgs.
+func (msgs Messages) PurgeRecentHint() string {
+	return Catalog.Format(msgs.locale, "purgeRecentHint", nil)
+}
