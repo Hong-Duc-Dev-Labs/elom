@@ -120,6 +120,28 @@ func TestWhitelistCorruptIsUnreadable(t *testing.T) {
 	}
 }
 
+func TestPurgePaths(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := store.PurgePaths(); err != nil || got != nil {
+		t.Fatalf("PurgePaths(missing) = %v, %v", got, err)
+	}
+	want := []string{`C:\Users\ada\Projects`, `D:\Dev`}
+	if err := store.SavePurgePaths(want); err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.PurgePaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Fatalf("PurgePaths() = %v, want %v", got, want)
+	}
+}
+
 func names(entries []os.DirEntry) []string {
 	out := make([]string, len(entries))
 	for i, e := range entries {

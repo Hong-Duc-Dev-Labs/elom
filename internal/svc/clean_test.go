@@ -112,6 +112,39 @@ func TestDeleteSkipsBlocked(t *testing.T) {
 	}
 }
 
+func TestScanAndDeleteInstallersUsesRecycleBin(t *testing.T) {
+	downloads := t.TempDir()
+	old := time.Now().Add(-20 * 24 * time.Hour)
+	msi := filepath.Join(downloads, "app.msi")
+	if err := os.WriteFile(msi, make([]byte, 4096), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_ = os.Chtimes(msi, old, old)
+
+	clean, _, log, trash := newCleanForTest(t, t.TempDir(), nil)
+	clean.DownloadsDir = downloads
+
+	found, err := clean.ScanInstallers(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(found) != 1 || found[0].Path != msi || !found[0].Checked {
+		t.Fatalf("ScanInstallers = %+v", found)
+	}
+
+	results := clean.DeleteInstallers(context.Background(), found)
+	if len(results) != 1 || results[0].Err != "" || results[0].Outcome != oplog.ResultTrashed {
+		t.Fatalf("DeleteInstallers = %+v", results)
+	}
+	if len(trash.done) != 1 || trash.done[0] != msi {
+		t.Fatalf("trash = %v", trash.done)
+	}
+	records, err := oplog.Read(log.Path())
+	if err != nil || len(records) != 1 || records[0].Result != oplog.ResultTrashed {
+		t.Fatalf("oplog = %+v, %v", records, err)
+	}
+}
+
 // TestRealScan is opt-in: it measures and sizes the real catalog on this PC,
 // which takes seconds and touches many folders. Set ELOM_REAL_SCAN=1.
 func TestRealScan(t *testing.T) {

@@ -49,10 +49,24 @@ type softwareState struct {
 	// rows is the app list; byName sorts it by name instead of by size.
 	rows   ListState
 	byName bool
+
+	// Orphaned AppData scanner state (review-first, always unchecked by default).
+	orphaned       []apps.Leftover
+	orphanChosen   map[string]bool
+	orphanScanning bool
+	orphanScanned  bool
+	orphanBusy     bool
+	orphanErr      string
+	orphanFinished string
 }
 
 func newSoftwareState() softwareState {
-	return softwareState{picked: -1, chosen: map[string]bool{}, icons: map[string]*Bitmap{}}
+	return softwareState{
+		picked:       -1,
+		chosen:       map[string]bool{},
+		orphanChosen: map[string]bool{},
+		icons:        map[string]*Bitmap{},
+	}
 }
 
 // iconFor returns the app's icon, reading it once per path. MyGo draws
@@ -466,4 +480,201 @@ func tail(lines []string, n int) []string {
 		return lines
 	}
 	return lines[len(lines)-n:]
+}
+
+func (a *App) orphanedTab(c *Context, pal palette) {
+	st := &a.software
+
+	if st.orphanErr != "" {
+		cardWith(c, 4, func() {
+			Text(c, locales.SoftwareError(st.orphanErr)).FontSize(12.5).TextColor(appTheme.Danger)
+		})
+	}
+
+	cardWith(c, 8, func() {
+		Row(c).FillWidth().Gap(8).AlignItems(Center).Children(func() {
+			Box(c).Size(6, 6).Radius(3).Background(pal.glow)
+			capsLabel(c, locales.AppsOrphanedTitle(), quietText())
+			Spacer(c)
+			if !st.orphanScanning && !st.orphanBusy {
+				label := locales.AppsOrphanedScan()
+				if st.orphanScanned {
+					label = locales.CleanRescan()
+				}
+				if primaryPill(c, label).Clicked() {
+					a.scanOrphaned()
+				}
+			}
+		})
+		Text(c, locales.AppsOrphanedHint()).FontSize(sizeCaption).TextColor(fgMuted())
+	})
+
+	switch {
+	case st.orphanScanning:
+		cardWith(c, 8, func() {
+			Row(c).Gap(10).AlignItems(Center).Children(func() {
+				Spinner(c)
+				Text(c, locales.AppsOrphanedScanning()).FontSize(12.5).TextColor(appTheme.TextMuted)
+			})
+		})
+		return
+	case st.orphanBusy:
+		cardWith(c, 8, func() {
+			Row(c).Gap(10).AlignItems(Center).Children(func() {
+				Spinner(c)
+				Text(c, locales.CleanDelete()).FontSize(12.5).TextColor(appTheme.TextMuted)
+			})
+		})
+		return
+	case !st.orphanScanned:
+		return
+	}
+
+	selected, bytes := st.orphanSelection()
+	var total int64
+	for _, item := range st.orphaned {
+		total += item.Bytes
+	}
+
+	Row(c).FillWidth().Gap(10).AlignItems(Center).Padding(4, 0, 0, 0).Children(func() {
+		Column(c).Gap(2).Children(func() {
+			Text(c, locales.CleanFound(humanBytes(total))).Font(fontMono).FontSize(20).FontWeight(500).
+				TextColor(appTheme.Text).NoWrap()
+			Text(c, locales.CleanSelected(selected, humanBytes(bytes))).FontSize(12.5).TextColor(fgSecondary())
+		})
+		Spacer(c)
+		if st.orphanFinished != "" {
+			Text(c, st.orphanFinished).FontSize(12).TextColor(appTheme.Success)
+		}
+		if selected > 0 {
+			if primaryPill(c, locales.AppsOrphanedTrash()).Clicked() {
+				a.trashOrphaned()
+			}
+		}
+	})
+
+	if len(st.orphaned) == 0 {
+		cardWith(c, 4, func() {
+			Text(c, locales.AppsOrphanedNothing()).FontSize(13).TextColor(appTheme.TextMuted)
+		})
+		return
+	}
+
+	cardWith(c, 4, func() {
+		for i, item := range st.orphaned {
+			row := listRow(c)
+			row.Children(func() {
+				checked := st.orphanChosen[item.Path]
+				box := Checkbox(c, &checked, "").Label(item.Path)
+				if box.Changed() {
+					st.orphanChosen[item.Path] = checked
+				}
+				Column(c).Grow(1).Gap(2).Children(func() {
+					Row(c).Gap(8).AlignItems(Center).Children(func() {
+						Text(c, apps.BaseName(item.Path)).FontSize(12.5).FontWeight(600).TextColor(fgPrimary()).NoWrap()
+						if item.AgeDays > 0 {
+							pillTag(c, locales.AppsOrphanedInactive(item.AgeDays), fgMuted())
+						}
+					})
+					Text(c, item.Path).Font(fontMono).FontSize(sizeCaption).TextColor(fgMuted()).
+						SingleLine().Ellipsis("…").Tooltip(item.Path)
+				})
+				Text(c, humanBytes(item.Bytes)).Font(fontMono).FontSize(sizeMeta).
+					TextColor(fgSecondary()).Width(84).TextAlign(End).NoWrap()
+			})
+			if row.Hovered() {
+				row.Background(faintFill())
+			}
+			if i < len(st.orphaned)-1 {
+				rowDivider(c)
+			}
+		}
+	})
+}
+
+func (st *softwareState) orphanSelection() (count int, bytes int64) {
+	for _, item := range st.orphaned {
+		if st.orphanChosen[item.Path] {
+			count++
+			bytes += item.Bytes
+		}
+	}
+	return count, bytes
+}
+
+func (a *App) scanOrphaned() {
+	if a.software.orphanScanning || a.Win == nil || a.Software == nil {
+		return
+	}
+	a.software.orphanScanning = true
+	a.software.orphanErr = ""
+	a.software.orphanFinished = ""
+	go func() {
+		found, err := a.Software.FindOrphaned(context.Background())
+		a.Win.Update(func() {
+			a.software.orphanScanning = false
+			a.software.orphanScanned = true
+			if err != nil {
+				a.software.orphanErr = err.Error()
+				return
+			}
+			a.software.orphaned = found
+			// Orphaned app data is always unchecked by default.
+			a.software.orphanChosen = map[string]bool{}
+		})
+	}()
+}
+
+func (a *App) trashOrphaned() {
+	var paths []string
+	var total int64
+	for _, item := range a.software.orphaned {
+		if a.software.orphanChosen[item.Path] {
+			paths = append(paths, item.Path)
+			total += item.Bytes
+		}
+	}
+	if len(paths) == 0 || a.software.orphanBusy || a.Win == nil || a.Clean == nil {
+		return
+	}
+	go func() {
+		res, err := mygo.Dialog.Message(mygo.MessageOptions{
+			Parent:             a.Win,
+			Type:               mygo.MessageWarning,
+			Message:            locales.CleanConfirmTitle(len(paths)),
+			Detail:             locales.CleanConfirmDetail(humanBytes(total)),
+			Buttons:            []string{locales.CleanCancel(), locales.CleanDelete()},
+			DefaultButton:      1,
+			CancelButton:       0,
+			DestructiveButtons: []int{1},
+		})
+		if err != nil || res.Button != 1 {
+			return
+		}
+		a.Win.Update(func() { a.software.orphanBusy = true })
+		results := a.Clean.DeletePaths(context.Background(), paths)
+		a.Win.Update(func() {
+			ok, failed := 0, 0
+			removed := map[string]bool{}
+			for _, r := range results {
+				if r.Err != "" {
+					failed++
+					continue
+				}
+				ok++
+				removed[r.Path] = true
+				delete(a.software.orphanChosen, r.Path)
+			}
+			kept := a.software.orphaned[:0]
+			for _, item := range a.software.orphaned {
+				if !removed[item.Path] {
+					kept = append(kept, item)
+				}
+			}
+			a.software.orphaned = kept
+			a.software.orphanBusy = false
+			a.software.orphanFinished = locales.CleanResult(ok, failed)
+			a.reload()
+		})
+	}()
 }

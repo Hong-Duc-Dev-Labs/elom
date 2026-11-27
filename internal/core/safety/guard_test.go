@@ -147,3 +147,93 @@ func TestCheckUsesEnvironment(t *testing.T) {
 		t.Fatal("Documents allowed")
 	}
 }
+
+func TestForProjectRoots(t *testing.T) {
+	root := t.TempDir()
+	proj := filepath.Join(root, "myapp")
+	nm := filepath.Join(proj, "node_modules")
+	src := filepath.Join(proj, "src")
+	if err := os.MkdirAll(nm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(src, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(proj, "package.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Folder without project marker.
+	unmarked := filepath.Join(root, "notes", "build")
+	if err := os.MkdirAll(unmarked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// .NET project with *.csproj marker.
+	dotnet := filepath.Join(root, "dotnetapp")
+	dotnetBin := filepath.Join(dotnet, "bin")
+	if err := os.MkdirAll(dotnetBin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dotnet, "App.csproj"), []byte(`<Project/>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g := ForProjectRoots(root)
+
+	if err := g.Check(nm); err != nil {
+		t.Errorf("Check(node_modules) = %v, want allow", err)
+	}
+	if err := g.Check(dotnetBin); err != nil {
+		t.Errorf("Check(dotnet bin) = %v, want allow", err)
+	}
+	if err := g.Check(root); !IsRefusal(err, ReasonNotArtifact) {
+		t.Errorf("Check(root) = %v, want ReasonNotArtifact", err)
+	}
+	if err := g.Check(src); !IsRefusal(err, ReasonNotArtifact) {
+		t.Errorf("Check(src) = %v, want ReasonNotArtifact", err)
+	}
+	if err := g.Check(unmarked); !IsRefusal(err, ReasonNotArtifact) {
+		t.Errorf("Check(unmarked build) = %v, want ReasonNotArtifact", err)
+	}
+	if err := g.Check(filepath.Join(t.TempDir(), "node_modules")); !IsRefusal(err, ReasonOutsideRoot) {
+		t.Errorf("Check(outside root) = %v, want ReasonOutsideRoot", err)
+	}
+}
+
+func TestForInstallerDownloads(t *testing.T) {
+	downloads := t.TempDir()
+	msi := filepath.Join(downloads, "setup.msi")
+	doc := filepath.Join(downloads, "notes.txt")
+	subDir := filepath.Join(downloads, "folder.msi")
+	if err := os.WriteFile(msi, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(doc, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(subDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	outside := filepath.Join(t.TempDir(), "other.msi")
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	g := ForInstallerDownloads(downloads)
+	if err := g.Check(msi); err != nil {
+		t.Errorf("Check(setup.msi) = %v, want allow", err)
+	}
+	if err := g.Check(downloads); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(downloads root) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(doc); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(notes.txt) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(subDir); !IsRefusal(err, ReasonNotInstaller) {
+		t.Errorf("Check(directory named folder.msi) = %v, want ReasonNotInstaller", err)
+	}
+	if err := g.Check(outside); !IsRefusal(err, ReasonOutsideRoot) {
+		t.Errorf("Check(outside.msi) = %v, want ReasonOutsideRoot", err)
+	}
+}

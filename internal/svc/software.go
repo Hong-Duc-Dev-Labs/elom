@@ -112,11 +112,23 @@ func (s *Software) AwaitRemoval(ctx context.Context, app apps.App, grace, interv
 }
 
 // Leftovers returns the folders that probably belong to the app, with their
-// sizes measured here, once. It needs the app's uninstall to have finished, or
-// the vendor uninstaller would race it.
+// sizes measured here, once. It applies the sibling-install guard against
+// currently installed apps so shared publisher folders are never proposed when
+// another app from the same publisher remains installed.
 func (s *Software) Leftovers(app apps.App) []apps.Leftover {
+	registry := s.EnumerateRegistry
+	if registry == nil {
+		registry = apps.Enumerate
+	}
+	installed, _ := registry()
+	return s.LeftoversWithInstalled(app, installed)
+}
+
+// LeftoversWithInstalled runs leftover discovery with an explicit list of
+// currently installed apps for the sibling-install guard.
+func (s *Software) LeftoversWithInstalled(app apps.App, installed []apps.App) []apps.Leftover {
 	roots := apps.LeftoverRoots(s.Home, s.Local, s.Roaming, s.ProgramData)
-	leftovers := apps.FindLeftovers(app, roots, s.Exclude)
+	leftovers := apps.FindLeftoversWithSiblings(app, installed, roots, s.Exclude)
 	measure := s.Measure
 	if measure == nil {
 		measure = func(path string) int64 { bytes, _ := scan.Size(path); return bytes }
@@ -125,6 +137,31 @@ func (s *Software) Leftovers(app apps.App) []apps.Leftover {
 		leftovers[i].Bytes = measure(leftovers[i].Path)
 	}
 	return leftovers
+}
+
+// FindOrphaned scans user AppData folders (Local and Roaming) for inactive
+// (>60 days), large (>10 MB) directories that do not match any installed app
+// and are not protected system/driver/framework/AI/VPN/password-manager data.
+func (s *Software) FindOrphaned(ctx context.Context) ([]apps.Leftover, error) {
+	installed, _, err := s.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var roots []string
+	if s.Local != "" {
+		roots = append(roots, s.Local)
+	}
+	if s.Roaming != "" {
+		roots = append(roots, s.Roaming)
+	}
+	return apps.FindOrphanedFiltered(
+		installed,
+		roots,
+		apps.DefaultOrphanMinAgeDays,
+		apps.DefaultOrphanMinBytes,
+		time.Now(),
+		s.Exclude,
+	), nil
 }
 
 // Updates asks winget which installed packages have newer versions.

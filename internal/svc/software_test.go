@@ -134,3 +134,23 @@ func TestLeftoversMeasuredOnce(t *testing.T) {
 		t.Errorf("measure called %d times, want once", calls)
 	}
 }
+
+func TestLeftoversSiblingGuardInService(t *testing.T) {
+	root := t.TempDir()
+	pubDir := filepath.Join(root, "JetBrains")
+	ideaDir := filepath.Join(pubDir, "IntelliJ IDEA")
+	if err := os.MkdirAll(ideaDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sw := &Software{
+		Local: root,
+		EnumerateRegistry: func() ([]apps.App, error) {
+			return []apps.App{{ID: "goland", Name: "GoLand", Publisher: "JetBrains s.r.o."}}, nil
+		},
+		Measure: func(string) int64 { return 1024 },
+	}
+	got := sw.Leftovers(apps.App{ID: "idea", Name: "IntelliJ IDEA", Publisher: "JetBrains s.r.o."})
+	if len(got) != 1 || got[0].Path != ideaDir {
+		t.Fatalf("leftovers = %+v, want only %s (publisher root protected by sibling)", got, ideaDir)
+	}
+}

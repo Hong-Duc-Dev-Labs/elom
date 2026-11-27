@@ -199,3 +199,54 @@ func TestTrashOutcomeCountsRefusedAndFailed(t *testing.T) {
 		t.Fatalf("outcome = %q", got)
 	}
 }
+
+func TestAnalyzePartialCleanableSearchSortAndCache(t *testing.T) {
+	a := newTestApp(t)
+	a.Screen = "analyze"
+	root := fakeIndex()
+	root.Partial = true
+	root.PartialReasons = []scan.PartialReason{scan.PartialDepthLimit, scan.PartialReadError}
+	root.Children[0].Cleanable = true
+	root.Children[0].Partial = true
+	root.Children[0].PartialReasons = []scan.PartialReason{scan.PartialDepthLimit}
+	a.analyze.root = root
+	a.analyze.current = root
+	a.analyze.largest = scan.LargestFiles(root, 20)
+
+	tt := NewTester(a.View, 1180, 760)
+	texts := strings.Join(tt.Texts(), "\n")
+	for _, want := range []string{"6.0 kB+", "4.0 kB+", "cleanable", "depth limit", "read error"} {
+		if !strings.Contains(texts, want) {
+			t.Errorf("missing %q in:\n%s", want, texts)
+		}
+	}
+
+	// Search filters visible children.
+	a.analyze.query = "three"
+	vis := a.analyze.visibleChildren()
+	if len(vis) != 1 || vis[0].Name != "three.bin" {
+		t.Fatalf("search visibleChildren = %+v, want only three.bin", vis)
+	}
+
+	// Sort by name orders alphabetically.
+	a.analyze.query = ""
+	a.analyze.sortByName = true
+	vis = a.analyze.visibleChildren()
+	if len(vis) != 2 || vis[0].Name != "big" || vis[1].Name != "three.bin" {
+		t.Fatalf("sortByName visibleChildren = %+v", vis)
+	}
+
+	// Cache restores indexed node without a window/rescan and clears on invalidate.
+	cached := fakeIndex()
+	a.analyze.cache[normalizeAnalyzePath(cached.Path)] = cached
+	a.analyze.root = nil
+	a.analyze.current = nil
+	a.startIndex(cached.Path)
+	if a.analyze.current != cached {
+		t.Fatalf("startIndex did not use cache")
+	}
+	a.invalidateAnalyzeCache()
+	if len(a.analyze.cache) != 0 {
+		t.Fatalf("cache was not invalidated")
+	}
+}

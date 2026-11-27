@@ -2056,3 +2056,355 @@ func StatusDriveFree(drive string, free string) string {
 func (msgs Messages) StatusDriveFree(drive string, free string) string {
 	return Catalog.Format(msgs.locale, "statusDriveFree", map[string]any{"drive": drive, "free": free})
 }
+
+// CleanTabCaches says "Caches"
+// in the language the app shows.
+func CleanTabCaches() string { return In(i18n.Locale()).CleanTabCaches() }
+
+// CleanTabCaches says "Caches"
+// in the language of msgs.
+func (msgs Messages) CleanTabCaches() string {
+	return Catalog.Format(msgs.locale, "cleanTabCaches", nil)
+}
+
+// CleanTabPurge says "Dev Purge"
+// in the language the app shows.
+func CleanTabPurge() string { return In(i18n.Locale()).CleanTabPurge() }
+
+// CleanTabPurge says "Dev Purge"
+// in the language of msgs.
+func (msgs Messages) CleanTabPurge() string {
+	return Catalog.Format(msgs.locale, "cleanTabPurge", nil)
+}
+
+// PurgeFoldersTitle says "Project folders"
+// in the language the app shows.
+func PurgeFoldersTitle() string { return In(i18n.Locale()).PurgeFoldersTitle() }
+
+// PurgeFoldersTitle says "Project folders"
+// in the language of msgs.
+func (msgs Messages) PurgeFoldersTitle() string {
+	return Catalog.Format(msgs.locale, "purgeFoldersTitle", nil)
+}
+
+// PurgeFoldersHint says "Elom only scans these folders when you click Scan. Only build artifacts inside recognized projects are offered."
+// in the language the app shows.
+func PurgeFoldersHint() string { return In(i18n.Locale()).PurgeFoldersHint() }
+
+// PurgeFoldersHint says "Elom only scans these folders when you click Scan. Only build artifacts inside recognized projects are offered."
+// in the language of msgs.
+func (msgs Messages) PurgeFoldersHint() string {
+	return Catalog.Format(msgs.locale, "purgeFoldersHint", nil)
+}
+
+// PurgeAddFolder says "Add folder…"
+// in the language the app shows.
+func PurgeAddFolder() string { return In(i18n.Locale()).PurgeAddFolder() }
+
+// PurgeAddFolder says "Add folder…"
+// in the language of msgs.
+func (msgs Messages) PurgeAddFolder() string {
+	return Catalog.Format(msgs.locale, "purgeAddFolder", nil)
+}
+
+// PurgeRemoveFolder says "Remove folder"
+// in the language the app shows.
+func PurgeRemoveFolder() string { return In(i18n.Locale()).PurgeRemoveFolder() }
+
+// PurgeRemoveFolder says "Remove folder"
+// in the language of msgs.
+func (msgs Messages) PurgeRemoveFolder() string {
+	return Catalog.Format(msgs.locale, "purgeRemoveFolder", nil)
+}
+
+// PurgeNoFolders says "No project folders configured yet. Add one to scan for node_modules, target, .venv, bin/obj and other build outputs."
+// in the language the app shows.
+func PurgeNoFolders() string { return In(i18n.Locale()).PurgeNoFolders() }
+
+// PurgeNoFolders says "No project folders configured yet. Add one to scan for node_modules, target, .venv, bin/obj and other build outputs."
+// in the language of msgs.
+func (msgs Messages) PurgeNoFolders() string {
+	return Catalog.Format(msgs.locale, "purgeNoFolders", nil)
+}
+
+// PurgeScan says "Scan projects"
+// in the language the app shows.
+func PurgeScan() string { return In(i18n.Locale()).PurgeScan() }
+
+// PurgeScan says "Scan projects"
+// in the language of msgs.
+func (msgs Messages) PurgeScan() string {
+	return Catalog.Format(msgs.locale, "purgeScan", nil)
+}
+
+// PurgeScanning says "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)"
+// in the language the app shows.
+func PurgeScanning(dirs int, found int) string { return In(i18n.Locale()).PurgeScanning(dirs, found) }
+
+// PurgeScanning says "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)"
+// in the language of msgs.
+func (msgs Messages) PurgeScanning(dirs int, found int) string {
+	return Catalog.Format(msgs.locale, "purgeScanning", map[string]any{"dirs": dirs, "found": found})
+}
+
+// PurgeNothing says "No removable build artifacts were found in your project folders."
+// in the language the app shows.
+func PurgeNothing() string { return In(i18n.Locale()).PurgeNothing() }
+
+// PurgeNothing says "No removable build artifacts were found in your project folders."
+// in the language of msgs.
+func (msgs Messages) PurgeNothing() string {
+	return Catalog.Format(msgs.locale, "purgeNothing", nil)
+}
+
+// PurgeRecentTag says "recent"
+// in the language the app shows.
+func PurgeRecentTag() string { return In(i18n.Locale()).PurgeRecentTag() }
+
+// PurgeRecentTag says "recent"
+// in the language of msgs.
+func (msgs Messages) PurgeRecentTag() string {
+	return Catalog.Format(msgs.locale, "purgeRecentTag", nil)
+}
+
+// PurgeRecentHint says "Modified within 7 days — unchecked by default."
+// in the language the app shows.
+func PurgeRecentHint() string { return In(i18n.Locale()).PurgeRecentHint() }
+
+// PurgeRecentHint says "Modified within 7 days — unchecked by default."
+// in the language of msgs.
+func (msgs Messages) PurgeRecentHint() string {
+	return Catalog.Format(msgs.locale, "purgeRecentHint", nil)
+}
+
+// AnalyzeSearch says "Filter folder"
+// in the language the app shows.
+func AnalyzeSearch() string { return In(i18n.Locale()).AnalyzeSearch() }
+
+// AnalyzeSearch says "Filter folder"
+// in the language of msgs.
+func (msgs Messages) AnalyzeSearch() string {
+	return Catalog.Format(msgs.locale, "analyzeSearch", nil)
+}
+
+// AnalyzeCleanable says "cleanable"
+// in the language the app shows.
+func AnalyzeCleanable() string { return In(i18n.Locale()).AnalyzeCleanable() }
+
+// AnalyzeCleanable says "cleanable"
+// in the language of msgs.
+func (msgs Messages) AnalyzeCleanable() string {
+	return Catalog.Format(msgs.locale, "analyzeCleanable", nil)
+}
+
+// AnalyzePartialReasons says "Partial size ({reasons})"
+// in the language the app shows.
+func AnalyzePartialReasons(reasons string) string {
+	return In(i18n.Locale()).AnalyzePartialReasons(reasons)
+}
+
+// AnalyzePartialReasons says "Partial size ({reasons})"
+// in the language of msgs.
+func (msgs Messages) AnalyzePartialReasons(reasons string) string {
+	return Catalog.Format(msgs.locale, "analyzePartialReasons", map[string]any{"reasons": reasons})
+}
+
+// AnalyzeReasonDepth says "depth limit"
+// in the language the app shows.
+func AnalyzeReasonDepth() string { return In(i18n.Locale()).AnalyzeReasonDepth() }
+
+// AnalyzeReasonDepth says "depth limit"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonDepth() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonDepth", nil)
+}
+
+// AnalyzeReasonEntries says "entry limit"
+// in the language the app shows.
+func AnalyzeReasonEntries() string { return In(i18n.Locale()).AnalyzeReasonEntries() }
+
+// AnalyzeReasonEntries says "entry limit"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonEntries() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonEntries", nil)
+}
+
+// AnalyzeReasonRead says "read error"
+// in the language the app shows.
+func AnalyzeReasonRead() string { return In(i18n.Locale()).AnalyzeReasonRead() }
+
+// AnalyzeReasonRead says "read error"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonRead() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonRead", nil)
+}
+
+// AnalyzeReasonTimeout says "timed out"
+// in the language the app shows.
+func AnalyzeReasonTimeout() string { return In(i18n.Locale()).AnalyzeReasonTimeout() }
+
+// AnalyzeReasonTimeout says "timed out"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonTimeout() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonTimeout", nil)
+}
+
+// CleanTabInstallers says "Installers"
+// in the language the app shows.
+func CleanTabInstallers() string { return In(i18n.Locale()).CleanTabInstallers() }
+
+// CleanTabInstallers says "Installers"
+// in the language of msgs.
+func (msgs Messages) CleanTabInstallers() string {
+	return Catalog.Format(msgs.locale, "cleanTabInstallers", nil)
+}
+
+// InstallersTitle says "Old installers in Downloads"
+// in the language the app shows.
+func InstallersTitle() string { return In(i18n.Locale()).InstallersTitle() }
+
+// InstallersTitle says "Old installers in Downloads"
+// in the language of msgs.
+func (msgs Messages) InstallersTitle() string {
+	return Catalog.Format(msgs.locale, "installersTitle", nil)
+}
+
+// InstallersHint says "Scans levels 1–2 of Downloads for .msi, .msix, .iso and .exe files older than 14 days. Always moves to the Recycle …"
+// in the language the app shows.
+func InstallersHint() string { return In(i18n.Locale()).InstallersHint() }
+
+// InstallersHint says "Scans levels 1–2 of Downloads for .msi, .msix, .iso and .exe files older than 14 days. Always moves to the Recycle …"
+// in the language of msgs.
+func (msgs Messages) InstallersHint() string {
+	return Catalog.Format(msgs.locale, "installersHint", nil)
+}
+
+// InstallersScan says "Scan Downloads"
+// in the language the app shows.
+func InstallersScan() string { return In(i18n.Locale()).InstallersScan() }
+
+// InstallersScan says "Scan Downloads"
+// in the language of msgs.
+func (msgs Messages) InstallersScan() string {
+	return Catalog.Format(msgs.locale, "installersScan", nil)
+}
+
+// InstallersScanning says "Scanning Downloads…"
+// in the language the app shows.
+func InstallersScanning() string { return In(i18n.Locale()).InstallersScanning() }
+
+// InstallersScanning says "Scanning Downloads…"
+// in the language of msgs.
+func (msgs Messages) InstallersScanning() string {
+	return Catalog.Format(msgs.locale, "installersScanning", nil)
+}
+
+// InstallersNothing says "No old installer files (14+ days) were found in Downloads."
+// in the language the app shows.
+func InstallersNothing() string { return In(i18n.Locale()).InstallersNothing() }
+
+// InstallersNothing says "No old installer files (14+ days) were found in Downloads."
+// in the language of msgs.
+func (msgs Messages) InstallersNothing() string {
+	return Catalog.Format(msgs.locale, "installersNothing", nil)
+}
+
+// InstallersExeHint says "Unchecked by default to avoid removing portable tools."
+// in the language the app shows.
+func InstallersExeHint() string { return In(i18n.Locale()).InstallersExeHint() }
+
+// InstallersExeHint says "Unchecked by default to avoid removing portable tools."
+// in the language of msgs.
+func (msgs Messages) InstallersExeHint() string {
+	return Catalog.Format(msgs.locale, "installersExeHint", nil)
+}
+
+// InstallersAge says "{days, number, integer}d old"
+// in the language the app shows.
+func InstallersAge(days int) string { return In(i18n.Locale()).InstallersAge(days) }
+
+// InstallersAge says "{days, number, integer}d old"
+// in the language of msgs.
+func (msgs Messages) InstallersAge(days int) string {
+	return Catalog.Format(msgs.locale, "installersAge", map[string]any{"days": days})
+}
+
+// AppsOrphaned says "Orphaned"
+// in the language the app shows.
+func AppsOrphaned() string { return In(i18n.Locale()).AppsOrphaned() }
+
+// AppsOrphaned says "Orphaned"
+// in the language of msgs.
+func (msgs Messages) AppsOrphaned() string {
+	return Catalog.Format(msgs.locale, "appsOrphaned", nil)
+}
+
+// AppsOrphanedTitle says "Orphaned app data"
+// in the language the app shows.
+func AppsOrphanedTitle() string { return In(i18n.Locale()).AppsOrphanedTitle() }
+
+// AppsOrphanedTitle says "Orphaned app data"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedTitle() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedTitle", nil)
+}
+
+// AppsOrphanedHint says "AppData folders inactive for 60+ days and larger than 10 MB with no matching installed app. Always unchecked by defau…"
+// in the language the app shows.
+func AppsOrphanedHint() string { return In(i18n.Locale()).AppsOrphanedHint() }
+
+// AppsOrphanedHint says "AppData folders inactive for 60+ days and larger than 10 MB with no matching installed app. Always unchecked by defau…"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedHint() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedHint", nil)
+}
+
+// AppsOrphanedScan says "Scan orphaned data"
+// in the language the app shows.
+func AppsOrphanedScan() string { return In(i18n.Locale()).AppsOrphanedScan() }
+
+// AppsOrphanedScan says "Scan orphaned data"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedScan() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedScan", nil)
+}
+
+// AppsOrphanedScanning says "Scanning AppData for orphaned folders…"
+// in the language the app shows.
+func AppsOrphanedScanning() string { return In(i18n.Locale()).AppsOrphanedScanning() }
+
+// AppsOrphanedScanning says "Scanning AppData for orphaned folders…"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedScanning() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedScanning", nil)
+}
+
+// AppsOrphanedNothing says "No orphaned AppData folders (60+ days, 10+ MB) were found."
+// in the language the app shows.
+func AppsOrphanedNothing() string { return In(i18n.Locale()).AppsOrphanedNothing() }
+
+// AppsOrphanedNothing says "No orphaned AppData folders (60+ days, 10+ MB) were found."
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedNothing() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedNothing", nil)
+}
+
+// AppsOrphanedTrash says "Move selected to Recycle Bin"
+// in the language the app shows.
+func AppsOrphanedTrash() string { return In(i18n.Locale()).AppsOrphanedTrash() }
+
+// AppsOrphanedTrash says "Move selected to Recycle Bin"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedTrash() string {
+	return Catalog.Format(msgs.locale, "appsOrphanedTrash", nil)
+}
+
+// AppsOrphanedInactive says "inactive {days, number, integer}d"
+// in the language the app shows.
+func AppsOrphanedInactive(days int) string { return In(i18n.Locale()).AppsOrphanedInactive(days) }
+
+// AppsOrphanedInactive says "inactive {days, number, integer}d"
+// in the language of msgs.
+func (msgs Messages) AppsOrphanedInactive(days int) string {
+	return Catalog.Format(msgs.locale, "appsOrphanedInactive", map[string]any{"days": days})
+}

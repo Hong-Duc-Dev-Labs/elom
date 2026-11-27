@@ -122,6 +122,37 @@ func (s *Store) SaveWhitelist(patterns []string) error {
 	return writeAtomic(filepath.Join(s.dir, "whitelist.json"), append(data, '\n'))
 }
 
+// PurgePaths returns the user's configured developer project root folders for
+// Dev Purge. A missing file returns nil, nil so callers can fall back to
+// suggested defaults without writing to disk.
+func (s *Store) PurgePaths() ([]string, error) {
+	path := filepath.Join(s.dir, "purge_paths.json")
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("settings: purge paths unreadable: %w", err)
+	}
+	var paths []string
+	if err := json.Unmarshal(data, &paths); err != nil {
+		return nil, fmt.Errorf("settings: purge paths unreadable: %w", err)
+	}
+	return paths, nil
+}
+
+// SavePurgePaths stores the developer project root folders atomically.
+func (s *Store) SavePurgePaths(paths []string) error {
+	if paths == nil {
+		paths = []string{}
+	}
+	data, err := json.MarshalIndent(paths, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeAtomic(filepath.Join(s.dir, "purge_paths.json"), append(data, '\n'))
+}
+
 func (v Settings) normalized() Settings {
 	if v.MaxScanDepth <= 0 {
 		v.MaxScanDepth = DefaultMaxDepth
