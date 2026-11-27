@@ -211,5 +211,12 @@
   "purgeScanning": "Scanning {dirs, number, integer} folders ({found, number, integer} artifacts found)",
   "purgeNothing": "No removable build artifacts were found in your project folders.",
   "purgeRecentTag": "recent",
-  "purgeRecentHint": "Modified within 7 days — unchecked by default."
+  "purgeRecentHint": "Modified within 7 days — unchecked by default.",
+  "analyzeSearch": "Filter folder",
+  "analyzeCleanable": "cleanable",
+  "analyzePartialReasons": "Partial size ({reasons})",
+  "analyzeReasonDepth": "depth limit",
+  "analyzeReasonEntries": "entry limit",
+  "analyzeReasonRead": "read error",
+  "analyzeReasonTimeout": "timed out"
 }

@@ -80,12 +80,103 @@ func TestIndexDepthLimit(t *testing.T) {
 	if node.Bytes != 50 {
 		t.Fatalf("depth 1 index = %d bytes, want only the top file (50)", node.Bytes)
 	}
+	if !node.Partial {
+		t.Fatal("root should be marked Partial when depth limit is hit")
+	}
+	hasDepth := false
+	for _, r := range node.PartialReasons {
+		if r == PartialDepthLimit {
+			hasDepth = true
+		}
+	}
+	if !hasDepth {
+		t.Fatalf("PartialReasons = %v, want %q", node.PartialReasons, PartialDepthLimit)
+	}
 }
 
 func TestIndexEntryLimit(t *testing.T) {
 	root := buildTree(t)
-	if _, err := Index(context.Background(), root, Limits{MaxEntries: 2}, nil); !errors.Is(err, ErrLimit) {
+	node, err := Index(context.Background(), root, Limits{MaxEntries: 2}, nil)
+	if !errors.Is(err, ErrLimit) {
 		t.Fatalf("Index = %v, want ErrLimit", err)
+	}
+	if node == nil || !node.Partial {
+		t.Fatalf("node should be Partial on entry limit: %+v", node)
+	}
+	hasEntry := false
+	for _, r := range node.PartialReasons {
+		if r == PartialEntryLimit {
+			hasEntry = true
+		}
+	}
+	if !hasEntry {
+		t.Fatalf("PartialReasons = %v, want %q", node.PartialReasons, PartialEntryLimit)
+	}
+}
+
+func TestIndexCleanableCacheDirTagAndBuildDirs(t *testing.T) {
+	root := t.TempDir()
+	tagged := filepath.Join(root, "custom-cache")
+	if err := os.MkdirAll(tagged, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tagged, "CACHEDIR.TAG"), []byte("Signature: 8a477f597d28d172789f06886806bc55\n# test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tagged, "blob.bin"), make([]byte, 512), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bogusTag := filepath.Join(root, "not-a-cache")
+	if err := os.MkdirAll(bogusTag, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bogusTag, "CACHEDIR.TAG"), []byte("wrong header"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	nm := filepath.Join(root, "node_modules")
+	if err := os.MkdirAll(nm, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(nm, "a.js"), make([]byte, 256), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	node, err := Index(context.Background(), root, Limits{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Find(node, tagged); got == nil || !got.Cleanable {
+		t.Errorf("CACHEDIR.TAG folder should be Cleanable: %+v", got)
+	}
+	if got := Find(node, bogusTag); got == nil || got.Cleanable {
+		t.Errorf("invalid CACHEDIR.TAG folder should not be Cleanable: %+v", got)
+	}
+	if got := Find(node, nm); got == nil || !got.Cleanable {
+		t.Errorf("node_modules should be Cleanable: %+v", got)
+	}
+}
+
+func TestIndexTimeoutMarksPartial(t *testing.T) {
+	root := buildTree(t)
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	node, err := Index(ctx, root, Limits{}, nil)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want DeadlineExceeded", err)
+	}
+	if node == nil || !node.Partial {
+		t.Fatalf("timed out node should be Partial: %+v", node)
+	}
+	hasTimeout := false
+	for _, r := range node.PartialReasons {
+		if r == PartialTimeout {
+			hasTimeout = true
+		}
+	}
+	if !hasTimeout {
+		t.Fatalf("PartialReasons = %v, want %q", node.PartialReasons, PartialTimeout)
 	}
 }
 

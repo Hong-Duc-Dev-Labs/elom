@@ -211,5 +211,12 @@
   "purgeScanning": "Đang quét {dirs, number, integer} thư mục (tìm thấy {found, number, integer} artifact)",
   "purgeNothing": "Không tìm thấy thư mục build/dependency nào cần dọn.",
   "purgeRecentTag": "gần đây",
-  "purgeRecentHint": "Mới chỉnh sửa trong 7 ngày gần nhất — bỏ chọn mặc định."
+  "purgeRecentHint": "Mới chỉnh sửa trong 7 ngày gần nhất — bỏ chọn mặc định.",
+  "analyzeSearch": "Lọc thư mục",
+  "analyzeCleanable": "có thể dọn",
+  "analyzePartialReasons": "Dung lượng một phần ({reasons})",
+  "analyzeReasonDepth": "giới hạn độ sâu",
+  "analyzeReasonEntries": "giới hạn số mục",
+  "analyzeReasonRead": "lỗi đọc",
+  "analyzeReasonTimeout": "hết thời gian"
 }

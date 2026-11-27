@@ -2176,3 +2176,75 @@ func PurgeRecentHint() string { return In(i18n.Locale()).PurgeRecentHint() }
 func (msgs Messages) PurgeRecentHint() string {
 	return Catalog.Format(msgs.locale, "purgeRecentHint", nil)
 }
+
+// AnalyzeSearch says "Filter folder"
+// in the language the app shows.
+func AnalyzeSearch() string { return In(i18n.Locale()).AnalyzeSearch() }
+
+// AnalyzeSearch says "Filter folder"
+// in the language of msgs.
+func (msgs Messages) AnalyzeSearch() string {
+	return Catalog.Format(msgs.locale, "analyzeSearch", nil)
+}
+
+// AnalyzeCleanable says "cleanable"
+// in the language the app shows.
+func AnalyzeCleanable() string { return In(i18n.Locale()).AnalyzeCleanable() }
+
+// AnalyzeCleanable says "cleanable"
+// in the language of msgs.
+func (msgs Messages) AnalyzeCleanable() string {
+	return Catalog.Format(msgs.locale, "analyzeCleanable", nil)
+}
+
+// AnalyzePartialReasons says "Partial size ({reasons})"
+// in the language the app shows.
+func AnalyzePartialReasons(reasons string) string {
+	return In(i18n.Locale()).AnalyzePartialReasons(reasons)
+}
+
+// AnalyzePartialReasons says "Partial size ({reasons})"
+// in the language of msgs.
+func (msgs Messages) AnalyzePartialReasons(reasons string) string {
+	return Catalog.Format(msgs.locale, "analyzePartialReasons", map[string]any{"reasons": reasons})
+}
+
+// AnalyzeReasonDepth says "depth limit"
+// in the language the app shows.
+func AnalyzeReasonDepth() string { return In(i18n.Locale()).AnalyzeReasonDepth() }
+
+// AnalyzeReasonDepth says "depth limit"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonDepth() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonDepth", nil)
+}
+
+// AnalyzeReasonEntries says "entry limit"
+// in the language the app shows.
+func AnalyzeReasonEntries() string { return In(i18n.Locale()).AnalyzeReasonEntries() }
+
+// AnalyzeReasonEntries says "entry limit"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonEntries() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonEntries", nil)
+}
+
+// AnalyzeReasonRead says "read error"
+// in the language the app shows.
+func AnalyzeReasonRead() string { return In(i18n.Locale()).AnalyzeReasonRead() }
+
+// AnalyzeReasonRead says "read error"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonRead() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonRead", nil)
+}
+
+// AnalyzeReasonTimeout says "timed out"
+// in the language the app shows.
+func AnalyzeReasonTimeout() string { return In(i18n.Locale()).AnalyzeReasonTimeout() }
+
+// AnalyzeReasonTimeout says "timed out"
+// in the language of msgs.
+func (msgs Messages) AnalyzeReasonTimeout() string {
+	return Catalog.Format(msgs.locale, "analyzeReasonTimeout", nil)
+}

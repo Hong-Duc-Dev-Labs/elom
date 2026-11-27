@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/egoist/mygo"
 	. "github.com/egoist/mygo/ui"
 
-	"elom/internal/core/delete"
+	coredelete "elom/internal/core/delete"
 	"elom/internal/core/metrics"
 	"elom/internal/core/safety"
 	"elom/internal/core/scan"
@@ -25,6 +27,10 @@ type analyzeState struct {
 	table   ListState
 	picked  int
 	chosen  map[string]bool
+
+	query      string
+	sortByName bool
+	cache      map[string]*scan.Node
 
 	scanning bool
 	busy     bool
@@ -49,7 +55,12 @@ type analyzeState struct {
 }
 
 func newAnalyzeState() analyzeState {
-	return analyzeState{picked: -1, hover: -1, chosen: map[string]bool{}}
+	return analyzeState{
+		picked: -1,
+		hover:  -1,
+		chosen: map[string]bool{},
+		cache:  map[string]*scan.Node{},
+	}
 }
 
 func (a *App) analyzePage(c *Context, pal palette) {
@@ -104,18 +115,37 @@ func (a *App) analyzePage(c *Context, pal palette) {
 	}
 
 	current := st.current
+	visible := st.visibleChildren()
 	Row(c).FillWidth().Grow(1).Gap(18).AlignItems(Stretch).Children(func() {
 		// The side: the planet for the folder, its size, and its children.
-		Column(c).Width(240).Gap(10).Children(func() {
-			Column(c).FillWidth().AlignItems(Center).Gap(10).Padding(6, 0, 4, 0).Children(func() {
-				planet(c, 92, pal)
-				Text(c, locales.AnalyzeItems(current.Files, humanBytes(current.Bytes))).
+		Column(c).Width(260).Gap(8).Children(func() {
+			Column(c).FillWidth().AlignItems(Center).Gap(8).Padding(6, 0, 2, 0).Children(func() {
+				planet(c, 88, pal)
+				Text(c, locales.AnalyzeItems(current.Files, formatNodeSize(current))).
 					FontSize(11.5).Font(fontMono).TextColor(softText()).NoWrap()
+				if current.Partial {
+					reasons := partialReasonsText(current.PartialReasons)
+					if reasons != "" {
+						Text(c, locales.AnalyzePartialReasons(reasons)).
+							FontSize(sizeFootnote).TextColor(appTheme.Warning).TextAlign(Center)
+					}
+				}
 			})
-			capsLabel(c, locales.AnalyzeCurrent(), softText())
-			List(c, nil, len(current.Children), func(i int) {
-				child := current.Children[i]
+			Row(c).FillWidth().Gap(6).AlignItems(Center).Children(func() {
+				capsLabel(c, locales.AnalyzeCurrent(), softText())
+				Spacer(c)
+				sortLink(c, locales.AppsSortSize(), !st.sortByName, func() { st.sortByName = false })
+				sortLink(c, locales.AppsSortName(), st.sortByName, func() { st.sortByName = true })
+			})
+			SearchField(c, &st.query).Placeholder(locales.AnalyzeSearch()).FillWidth()
+			List(c, nil, len(visible), func(i int) {
+				child := visible[i]
 				row := listRow(c)
+				if child.Partial {
+					if reasons := partialReasonsText(child.PartialReasons); reasons != "" {
+						row.Tooltip(locales.AnalyzePartialReasons(reasons))
+					}
+				}
 				row.Children(func() {
 					icon := iconFile
 					if child.Dir {
@@ -123,19 +153,32 @@ func (a *App) analyzePage(c *Context, pal palette) {
 					}
 					Icon(c, icon).FontSize(14).TextColor(fgMuted())
 					Column(c).Grow(1).Gap(2).Children(func() {
-						Text(c, trim(child.Name, 28)).FontSize(12.5).TextColor(fgPrimary()).NoWrap()
-						Text(c, humanBytes(child.Bytes)).Font(fontMono).FontSize(10.5).
-							TextColor(fgMuted()).NoWrap()
+						Row(c).Gap(6).AlignItems(Center).Children(func() {
+							Text(c, trim(child.Name, 22)).FontSize(12.5).TextColor(fgPrimary()).NoWrap()
+							if child.Cleanable {
+								pillTag(c, locales.AnalyzeCleanable(), accentMint)
+							}
+						})
+						sizeColor := fgMuted()
+						if child.Partial {
+							sizeColor = appTheme.Warning
+						}
+						Text(c, formatNodeSize(child)).Font(fontMono).FontSize(10.5).
+							TextColor(sizeColor).NoWrap()
 					})
 					if child.Dir {
 						Icon(c, iconChevron).FontSize(12).TextColor(fgFaint())
 					}
 				})
-				if row.Hovered() || i == st.hover {
+				hovered := row.Hovered()
+				if !hovered && st.hover >= 0 && st.hover < len(current.Children) && current.Children[st.hover] == child {
+					hovered = true
+				}
+				if hovered {
 					row.Background(faintFill())
 				}
-				row.OnClick(func() { a.openChild(i) })
-				if i < len(current.Children)-1 {
+				row.OnClick(func() { a.openNode(child) })
+				if i < len(visible)-1 {
 					rowDivider(c)
 				}
 			}).FillWidth().Grow(1)
@@ -174,7 +217,7 @@ func (a *App) analyzePage(c *Context, pal palette) {
 					a.chooseFolder()
 				}
 				if iconButton(c, iconRefresh, locales.AnalyzeRescan()).Clicked() {
-					a.startIndex(current.Path)
+					a.startIndexForce(current.Path, true)
 				}
 			})
 			if st.view == 1 {
@@ -288,7 +331,10 @@ func (a *App) paintTreemap(p *Painter, r Rect, pal palette) {
 		}
 		pad := float32(8)
 		nameSize := float32(12.5)
-		sizeText := humanBytes(child.Bytes)
+		sizeText := formatNodeSize(child)
+		if child.Cleanable && rect.W >= 150 {
+			sizeText += " · " + locales.AnalyzeCleanable()
+		}
 		switch {
 		case rect.W >= 96 && rect.H >= 52:
 			// Top-left, as Mole's treemap cells: icon, name, size. Only this
@@ -383,7 +429,14 @@ func (a *App) openChild(i int) {
 	if st.current == nil || i < 0 || i >= len(st.current.Children) {
 		return
 	}
-	child := st.current.Children[i]
+	a.openNode(st.current.Children[i])
+}
+
+func (a *App) openNode(child *scan.Node) {
+	st := &a.analyze
+	if st.current == nil || child == nil {
+		return
+	}
 	if !child.Dir {
 		for j, file := range st.largest {
 			if file.Path == child.Path {
@@ -402,6 +455,7 @@ func (a *App) resetSelected() {
 	st := &a.analyze
 	st.picked = -1
 	st.hover = -1
+	st.query = ""
 	st.largest = scan.LargestFiles(st.current, 100)
 	st.chosen = map[string]bool{}
 	st.tiles = nil
@@ -409,12 +463,98 @@ func (a *App) resetSelected() {
 	st.tilesRect = Rect{}
 }
 
+func (st *analyzeState) visibleChildren() []*scan.Node {
+	if st.current == nil || len(st.current.Children) == 0 {
+		return nil
+	}
+	q := strings.ToLower(strings.TrimSpace(st.query))
+	out := make([]*scan.Node, 0, len(st.current.Children))
+	for _, child := range st.current.Children {
+		if q != "" && !strings.Contains(strings.ToLower(child.Name), q) {
+			continue
+		}
+		out = append(out, child)
+	}
+	if st.sortByName {
+		sort.SliceStable(out, func(i, j int) bool {
+			return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+		})
+	} else {
+		sort.SliceStable(out, func(i, j int) bool {
+			if out[i].Bytes != out[j].Bytes {
+				return out[i].Bytes > out[j].Bytes
+			}
+			return strings.ToLower(out[i].Name) < strings.ToLower(out[j].Name)
+		})
+	}
+	return out
+}
+
+func formatNodeSize(n *scan.Node) string {
+	if n == nil {
+		return "0 B"
+	}
+	s := humanBytes(n.Bytes)
+	if n.Partial {
+		s += "+"
+	}
+	return s
+}
+
+func partialReasonsText(reasons []scan.PartialReason) string {
+	if len(reasons) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(reasons))
+	for _, r := range reasons {
+		switch r {
+		case scan.PartialDepthLimit:
+			parts = append(parts, locales.AnalyzeReasonDepth())
+		case scan.PartialEntryLimit:
+			parts = append(parts, locales.AnalyzeReasonEntries())
+		case scan.PartialReadError:
+			parts = append(parts, locales.AnalyzeReasonRead())
+		case scan.PartialTimeout:
+			parts = append(parts, locales.AnalyzeReasonTimeout())
+		default:
+			parts = append(parts, string(r))
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+func normalizeAnalyzePath(p string) string {
+	return strings.ToLower(filepath.Clean(strings.TrimSpace(p)))
+}
+
+func (a *App) invalidateAnalyzeCache() {
+	a.analyze.cache = map[string]*scan.Node{}
+}
+
 func (a *App) startIndex(root string) {
-	if a.analyze.scanning || a.Win == nil {
+	a.startIndexForce(root, false)
+}
+
+func (a *App) startIndexForce(root string, force bool) {
+	st := &a.analyze
+	key := normalizeAnalyzePath(root)
+	if !force && st.cache != nil {
+		if cached, ok := st.cache[key]; ok && cached != nil {
+			st.root = cached
+			st.current = cached
+			st.stack = nil
+			st.err = ""
+			a.resetSelected()
+			return
+		}
+	}
+	if st.scanning || a.Win == nil {
 		return
 	}
+	if force && st.cache != nil {
+		delete(st.cache, key)
+	}
 	ctx, cancel := context.WithCancel(context.Background())
-	st := &a.analyze
 	st.scanning = true
 	st.err = ""
 	st.cancel = cancel
@@ -438,6 +578,12 @@ func (a *App) startIndex(root string) {
 				st.err = locales.AnalyzePartial()
 			} else {
 				st.err = ""
+			}
+			if st.cache == nil {
+				st.cache = map[string]*scan.Node{}
+			}
+			if err == nil || errors.Is(err, scan.ErrLimit) {
+				st.cache[key] = node
 			}
 			st.root = node
 			st.current = node
@@ -504,7 +650,7 @@ func refusalReason(err error) string {
 }
 
 // trashOutcome summarizes what was not moved, or "" when everything was.
-func trashOutcome(results []delete.Result, refused int, reason string) string {
+func trashOutcome(results []coredelete.Result, refused int, reason string) string {
 	failed := refused
 	for _, r := range results {
 		if r.Err == "" {
@@ -561,8 +707,9 @@ func (a *App) trashPaths(chosen []string) {
 				}
 			}
 			if ok > 0 {
+				a.invalidateAnalyzeCache()
 				a.reload()
-				a.startIndex(a.analyze.current.Path)
+				a.startIndexForce(a.analyze.current.Path, true)
 			}
 		})
 	}()
